@@ -22,6 +22,9 @@ interface ITridentHook {
         uint256 vaultCapture
     );
 
+    /// @notice Emitted when the oracle manipulation guard trips and the fee is capped
+    event OracleManipulationGuardTriggered(uint256 chainlinkPrice, uint256 twapPrice, uint256 divergenceBps);
+
     // -------------------------------------------------------------------------
     // Errors
     // -------------------------------------------------------------------------

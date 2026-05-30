@@ -6,9 +6,6 @@ pragma solidity ^0.8.26;
 ///         The hook calls this in beforeSwap to get the real-world price and
 ///         compute how far the pool price has drifted — that drift is the arb premium.
 interface IOracleReader {
-    /// @notice Emitted when the TWAP sanity check trips and the fee is capped
-    event OracleManipulationGuardTriggered(uint256 chainlinkPrice, uint256 twapPrice, uint256 divergenceBps);
-
     /// @notice Returns the latest price from the primary oracle (Chainlink), expressed
     ///         in the same units as the pool's sqrtPriceX96 denominator.
     ///         Reverts if the price is stale (older than STALENESS_THRESHOLD).
