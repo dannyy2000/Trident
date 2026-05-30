@@ -93,6 +93,7 @@ contract TridentHookTest is Test {
             IILReserveVault(address(vault)),
             tracker,
             BASE_FEE,
+            1e30, // decimalAdjustment for WETH/USDC: 10^(18-6+18)
             reactiveContract,
             owner
         );

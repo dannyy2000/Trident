@@ -251,6 +251,11 @@ contract ILReserveVault is IILReserveVault, ReentrancyGuard {
         return estimated > maxPayout ? maxPayout : estimated;
     }
 
+    /// @inheritdoc IILReserveVault
+    function positionExists(bytes32 positionId) external view override returns (bool) {
+        return _positions[positionId].exists;
+    }
+
     // -------------------------------------------------------------------------
     // Internal helpers
     // -------------------------------------------------------------------------

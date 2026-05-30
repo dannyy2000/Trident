@@ -79,4 +79,9 @@ interface IILReserveVault {
 
     /// @notice Preview what payout a position would receive right now without executing
     function previewPayout(bytes32 positionId, int24 currentTick) external view returns (uint256 estimatedPayout);
+
+    /// @notice Returns true if the vault has an active position record for this ID.
+    ///         Used by TridentHook in beforeRemoveLiquidity to skip settlement for LPs
+    ///         who did not add liquidity through this hook.
+    function positionExists(bytes32 positionId) external view returns (bool);
 }

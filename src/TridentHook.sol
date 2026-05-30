@@ -82,8 +82,13 @@ contract TridentHook is IHooks, ITridentHook, IReactiveCallback {
     IILReserveVault private immutable _vault;
     PositionTracker private immutable _positionTracker;
 
-    /// @notice Base fee applied to all swaps before arb and boundary premiums (basis points)
+    /// @notice Base fee applied to all swaps before arb and boundary premiums (v4 pips, 1e6 = 100%)
     uint24 public immutable baseFee;
+
+    /// @notice Scales pool sqrtPriceX96 → oracle-compatible 1e18 price.
+    ///         = 10^(token0Decimals - token1Decimals + 18)
+    ///         e.g. WETH(18)/USDC(6): decimalAdjustment = 1e30
+    uint256 public immutable decimalAdjustment;
 
     address public immutable owner;
 
@@ -155,6 +160,7 @@ contract TridentHook is IHooks, ITridentHook, IReactiveCallback {
         IILReserveVault __vault,
         PositionTracker __positionTracker,
         uint24 _baseFee,
+        uint256 _decimalAdjustment,
         address _reactiveContract_,
         address _owner
     ) {
@@ -165,6 +171,7 @@ contract TridentHook is IHooks, ITridentHook, IReactiveCallback {
         _vault = __vault;
         _positionTracker = __positionTracker;
         baseFee = _baseFee;
+        decimalAdjustment = _decimalAdjustment;
         _reactiveContract = _reactiveContract_;
         owner = _owner;
     }
@@ -227,18 +234,53 @@ contract TridentHook is IHooks, ITridentHook, IReactiveCallback {
         });
     }
 
-    /// @notice Layer 1 + Layer 2: computes dynamic fee from primed deviation and gamma score.
-    ///         No external calls in this path — all inputs are pre-computed by Reactive.
+    /// @notice Layer 1 + Layer 2: dynamic fee from oracle deviation + gamma score.
+    ///
+    ///         Primary path (Reactive pre-primed — gas efficient):
+    ///           Uses primedDeviationBps and primedGammaScore set by Reactive between swaps.
+    ///
+    ///         Fallback path (Reactive offline or first swap after deploy):
+    ///           Layer 1: reads slot0 sqrtPriceX96, converts to pool price via decimalAdjustment,
+    ///                    calls OracleReader.getDeviationBps(poolPrice) directly.
+    ///           Layer 2: reads current tick from slot0, calls GammaScorer.computeGammaScore()
+    ///                    against primedBoundaryTick if one has been set.
     function beforeSwap(address, PoolKey calldata key, SwapParams calldata, bytes calldata)
         external
         override
         onlyPoolManager
         returns (bytes4, BeforeSwapDelta, uint24)
     {
-        uint24 arbPremium = _computeArbPremium(primedDeviationBps);
-        uint24 boundaryPremium = _computeBoundaryPremium(primedGammaScore);
+        // Read pool state — needed for fallback oracle/gamma and for afterAddLiquidity consistency
+        (uint160 sqrtPriceX96, int24 currentTick,,) = poolManager.getSlot0(key.toId());
+
+        // ── Layer 1: Arb detection ──────────────────────────────────────────────
+        uint256 deviationBps = primedDeviationBps;
+        if (deviationBps == 0) {
+            // Fallback: query oracle directly using live pool price
+            uint256 poolPrice = _sqrtPriceToPrice1e18(sqrtPriceX96);
+            if (poolPrice > 0) {
+                try _oracleReader.getDeviationBps(poolPrice) returns (uint256 dev) {
+                    deviationBps = dev;
+                } catch {}
+            }
+        }
+
+        // ── Layer 2: Range guardian ─────────────────────────────────────────────
+        uint256 gammaScore = primedGammaScore;
+        if (gammaScore == 0 && primedBoundaryTick != 0) {
+            // Fallback: compute gamma from live tick vs primed boundary
+            try _gammaScorer.computeGammaScore(currentTick, primedBoundaryTick, key.tickSpacing)
+                returns (uint256 score) {
+                gammaScore = score;
+            } catch {}
+        }
+
+        // ── Combine and cap ─────────────────────────────────────────────────────
+        uint24 arbPremium = _computeArbPremium(deviationBps);
+        uint24 boundaryPremium = _computeBoundaryPremium(gammaScore);
         uint24 totalFee = _capFee(baseFee + arbPremium + boundaryPremium);
 
+        // Oracle manipulation guard: if Reactive flagged TWAP/Chainlink divergence, cap fee
         if (oracleManipulated && totalFee > MANIPULATION_FEE_CAP_BPS) {
             totalFee = MANIPULATION_FEE_CAP_BPS;
         }
@@ -310,7 +352,8 @@ contract TridentHook is IHooks, ITridentHook, IReactiveCallback {
         return (IHooks.afterAddLiquidity.selector, toBalanceDelta(0, 0));
     }
 
-    /// @notice Layer 3 (settle): computes IL and loyalty factor, pays out from vault.
+    /// @notice Layer 3 (settle): computes IL × loyalty × health → pays out from vault.
+    ///         Skips silently for LPs who did not add liquidity through this hook.
     function beforeRemoveLiquidity(
         address sender,
         PoolKey calldata key,
@@ -319,10 +362,12 @@ contract TridentHook is IHooks, ITridentHook, IReactiveCallback {
     ) external override onlyPoolManager returns (bytes4) {
         bytes32 positionId = _derivePositionId(sender, params.tickLower, params.tickUpper, params.salt);
 
-        if (_vault.previewPayout(positionId, 0) > 0 || _isPositionInVault(positionId)) {
+        if (_vault.positionExists(positionId)) {
             (, int24 currentTick,,) = poolManager.getSlot0(key.toId());
             _vault.settlePosition(positionId, currentTick, sender);
-            _positionTracker.deletePosition(positionId);
+            if (_positionTracker.positionExists(positionId)) {
+                _positionTracker.deletePosition(positionId);
+            }
         }
 
         return IHooks.beforeRemoveLiquidity.selector;
@@ -480,11 +525,18 @@ contract TridentHook is IHooks, ITridentHook, IReactiveCallback {
         return keccak256(abi.encode(lp, tickLower, tickUpper, salt));
     }
 
-    /// @dev Returns true if the vault has a position record for this ID
-    function _isPositionInVault(bytes32 positionId) internal view returns (bool) {
-        return _vault.previewPayout(positionId, 0) == 0
-            && _vault.previewPayout(positionId, type(int24).max) > 0
-            || _vault.previewPayout(positionId, type(int24).min) > 0;
+    /// @dev Converts pool sqrtPriceX96 to a 1e18-scaled price compatible with OracleReader output.
+    ///      Formula: price1e18 = (sqrtP^2 / 2^96) * decimalAdjustment / 2^96
+    ///               = sqrtP^2 * decimalAdjustment / 2^192
+    ///      FullMath handles the 512-bit intermediate so extreme tick values don't overflow.
+    ///      decimalAdjustment = 10^(token0Decimals - token1Decimals + 18)
+    ///      e.g. WETH(18)/USDC(6): decimalAdjustment = 1e30
+    function _sqrtPriceToPrice1e18(uint160 sqrtPriceX96) internal view returns (uint256) {
+        if (decimalAdjustment == 0) return 0;
+        // Step 1: sqrtP^2 / 2^96  (loses no precision — FullMath uses 512-bit intermediate)
+        uint256 priceX96 = FullMath.mulDiv(uint256(sqrtPriceX96), uint256(sqrtPriceX96), 1 << 96);
+        // Step 2: scale from X96 to 1e18 using the pool's decimal adjustment
+        return FullMath.mulDiv(priceX96, decimalAdjustment, 1 << 96);
     }
 }
 
