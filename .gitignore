@@ -1,0 +1,20 @@
+# Foundry build output
+cache/
+out/
+
+# Broadcast logs
+!/broadcast
+/broadcast/*/31337/
+/broadcast/**/dry-run/
+
+# Environment files — never commit secrets
+.env
+.env.*
+!.env.example
+
+# IDE
+.idea/
+.vscode/
+
+# OS
+.DS_Store
