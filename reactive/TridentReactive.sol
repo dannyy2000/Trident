@@ -316,7 +316,7 @@ contract TridentReactive is AbstractPausableReactive {
         }
 
         nearestBoundary = nearest;
-        uint256 tickSpacingsAway = uint256(minDiff) / uint256(uint24(TICK_SPACING > 0 ? TICK_SPACING : 1));
+        uint256 tickSpacingsAway = uint256(minDiff) / uint256(uint24(TICK_SPACING > 0 ? TICK_SPACING : int24(1)));
         gammaScore = 1e18 / (tickSpacingsAway + 1);
     }
 
