@@ -4,7 +4,7 @@
 
 ![Solidity](https://img.shields.io/badge/Solidity-0.8.26-blue?logo=solidity)
 ![Foundry](https://img.shields.io/badge/Built%20with-Foundry-orange)
-![Tests](https://img.shields.io/badge/Tests-139%20passing-brightgreen)
+![Tests](https://img.shields.io/badge/Tests-146%20passing-brightgreen)
 ![License](https://img.shields.io/badge/License-MIT-green)
 ![Uniswap v4](https://img.shields.io/badge/Uniswap-v4%20Hook-pink)
 ![Reactive Network](https://img.shields.io/badge/Powered%20by-Reactive%20Network-purple)
@@ -467,6 +467,11 @@ trident-hook/
 │   ├── GammaScorer.sol           # Tick-to-boundary proximity (gamma score math)
 │   ├── PositionTracker.sol       # LP entry state + Reactive out-of-range tracking
 │   ├── ReactiveAdapter.sol       # Trust boundary — validates Reactive origin
+│   ├── demo/
+│   │   ├── MockChainlinkFeed.sol # AggregatorV3-compatible mock; setAnswer() for demo
+│   │   ├── MockERC20.sol         # Open mint() — testnet faucet token
+│   │   ├── SwapHelper.sol        # Minimal v4 swap router (unlock callback pattern)
+│   │   └── LiquidityHelper.sol   # Minimal v4 liquidity router
 │   └── interfaces/
 │       ├── ITridentHook.sol      # Public fee preview + config views
 │       ├── IILReserveVault.sol   # Vault external API
@@ -484,10 +489,29 @@ trident-hook/
 │   ├── invariant/
 │   │   └── TridentInvariant.t.sol # 7 invariants: vault solvency, no money printing
 │   └── integration/
-│       └── FullFlow.t.sol        # End-to-end: deposit → swaps → withdraw + payout
+│       └── FullFlow.t.sol        # 7 end-to-end tests: deposit → swaps → withdraw + payout
 ├── script/
-│   ├── Deploy.s.sol
-│   └── DeployReactive.s.sol
+│   ├── Deploy.s.sol              # Core contracts: hook, vault, tracker, oracle, adapter
+│   ├── DeployTokens.s.sol        # MockUSDC — establishes token1 address pre-deployment
+│   ├── DeployDemo.s.sol          # MockChainlinkFeed, MockWETH, SwapHelper, LiquidityHelper
+│   ├── InitPool.s.sol            # PoolManager.initialize at sqrtPriceX96 = $3000
+│   ├── SetOraclePrice.s.sol      # MockChainlinkFeed.setAnswer() for demo price changes
+│   └── DeployReactive.s.sol      # TridentReactive on Reactive Network (kopli)
+├── frontend/                     # Next.js demo UI
+│   ├── app/page.tsx              # Main page: faucet → swap → liquidity → LP position
+│   ├── components/
+│   │   ├── DemoControls.tsx      # Oracle price slider (amber panel)
+│   │   ├── SwapPanel.tsx         # Token swap with live fee preview
+│   │   ├── LiquidityPanel.tsx    # Add/remove liquidity
+│   │   ├── TokenFaucet.tsx       # Mint mWETH / mUSDC for testing
+│   │   ├── LPPosition.tsx        # Per-LP vault payout estimate
+│   │   ├── ActivityFeed.tsx      # Live SwapFeeBreakdown events
+│   │   ├── FeeBreakdown.tsx      # Current fee state from hook
+│   │   ├── VaultHealth.tsx       # Reserve vault health ratio
+│   │   └── ReactiveStatus.tsx    # Reactive Network connection status
+│   └── lib/
+│       ├── abis.ts               # Minimal ABIs for all contracts
+│       └── contracts.ts          # Contract addresses from .env.local
 └── foundry.toml
 ```
 
@@ -566,6 +590,7 @@ Vault health auto-adjustment (fires on every deposit AND position record):
 ### Prerequisites
 
 - [Foundry](https://book.getfoundry.sh/getting-started/installation)
+- Node.js 18+ (for frontend)
 - Git
 
 ### Clone and Build
@@ -575,6 +600,24 @@ git clone --recurse-submodules https://github.com/dannyy2000/Trident.git
 cd Trident
 forge build
 ```
+
+### Run the Frontend Locally
+
+```bash
+cd frontend
+npm install
+# Copy the example env and fill in your WalletConnect project ID
+cp .env.local.example .env.local
+npm run dev
+# → http://localhost:3000
+```
+
+**MetaMask setup for demo:**
+1. Add Unichain Sepolia: Chain ID `1301`, RPC `https://sepolia.unichain.org`, Explorer `https://sepolia.uniscan.xyz`
+2. Get testnet ETH from `https://faucet.unichain.org`
+3. Open `http://localhost:3000`, connect wallet
+4. Click "Get 10 mWETH" + "Get 30k mUSDC" in the Token Faucet
+5. Add Liquidity (tick range −6000/6000), then Swap, then set a new oracle price via Demo Controls and swap again to see the arb premium kick in
 
 ### Run Tests
 
@@ -605,7 +648,8 @@ FOUNDRY_PROFILE=ci forge test
 | ILReserveVault | 37 | Unit + Fuzz |
 | TridentHook | 28 | Unit + Fuzz |
 | TridentInvariant | 7 | Invariant (131k calls each) |
-| **Total** | **139** | |
+| FullFlow | 7 | Integration (end-to-end) |
+| **Total** | **146** | |
 
 ### Key Invariants Proven
 
@@ -617,14 +661,42 @@ FOUNDRY_PROFILE=ci forge test
 6. **Reserve never negative** — documented by design
 7. **Liability = 0 when no open positions** — no orphaned accounting
 
-### Deploy (coming in Week 2)
+### Deployed Contracts — Unichain Sepolia (Chain ID 1301)
+
+| Contract | Address |
+|---|---|
+| TridentHook | `0x1370d2f1244050A152F8a8A0922072bb54eBc6C0` |
+| ILReserveVault | `0x6aD065F00ABa43f79920d229EDEe5DABCDd3cfFD` |
+| PositionTracker | `0xf4a12663ED511ba7855aedfA842656E062A51305` |
+| OracleReader | `0xC674eeC4bfc8170EA28B71E7c97333Bd6f29265e` |
+| ReactiveAdapter | `0x8E511863Cd5092ca7aF19b35611AA80bF06b7322` |
+| MockChainlinkFeed | `0xc34AD85bD0a4385b1d727b351108881e8C34628e` |
+| MockWETH (token0) | `0x09727dCebbdfC13BCaf2C03ACFc91AB14B27886b` |
+| MockUSDC (token1) | `0x1BE9b1b76eD8d0d40DB33dCafDBCE0448e4FF200` |
+| SwapHelper | `0xB474f2156921990249741de88a7d7Db5bA6d38Ad` |
+| LiquidityHelper | `0x23b2D9D1CFe4F95B9f6C79EB99867Dc43613b7F1` |
+| PoolManager | `0x00B036B58a818B1BC34d502D3fE730Db729e62AC` |
+
+Pool ID: `0x198c039d15a9e83af81d10cc37c7962537d26cf4ea137c0c8ad4724d7cc0d077`
+Initial pool price: $3,000 (sqrtPriceX96 = 4339505179874779662909440)
+
+### Deploy Scripts
 
 ```bash
-# Deploy hook + vault + tracker + adapter to Unichain Sepolia
-forge script script/Deploy.s.sol --rpc-url $UNICHAIN_SEPOLIA_RPC --broadcast
+# 1. Deploy MockUSDC first (fixes token sort order — USDC must be token1)
+forge script script/DeployTokens.s.sol --rpc-url https://sepolia.unichain.org --broadcast
 
-# Deploy Reactive contract to Reactive Network
-forge script script/DeployReactive.s.sol --rpc-url $REACTIVE_RPC --broadcast
+# 2. Deploy core contracts (hook, vault, tracker, oracle, adapter)
+forge script script/Deploy.s.sol --rpc-url https://sepolia.unichain.org --broadcast
+
+# 3. Deploy demo contracts (MockChainlinkFeed, MockWETH, SwapHelper, LiquidityHelper)
+forge script script/DeployDemo.s.sol --rpc-url https://sepolia.unichain.org --broadcast
+
+# 4. Initialize the pool at $3000
+forge script script/InitPool.s.sol --rpc-url https://sepolia.unichain.org --broadcast
+
+# 5. (Optional) Deploy Reactive contract to Reactive Network
+forge script script/DeployReactive.s.sol --rpc-url https://kopli-rpc.rkt.ink --broadcast --legacy
 ```
 
 ---
@@ -639,10 +711,13 @@ forge script script/DeployReactive.s.sol --rpc-url $REACTIVE_RPC --broadcast
 | Primary oracle | Chainlink Price Feeds |
 | Secondary oracle | Pyth Network (via Reactive) |
 | Cross-chain automation | Reactive Network (Reactive Smart Contracts) |
-| Target deployment | Unichain (Uniswap's L2) |
-| Testing | Forge unit + fuzz + invariant (139 tests) |
+| Target deployment | Unichain Sepolia (Chain ID 1301) |
+| Testing | Forge unit + fuzz + invariant + integration (146 tests) |
 | CI | GitHub Actions |
 | Libraries | OpenZeppelin (ReentrancyGuard, SafeERC20) |
+| Frontend framework | Next.js 15 (App Router) |
+| Wallet integration | wagmi v3 + RainbowKit |
+| Frontend language | TypeScript |
 
 ---
 

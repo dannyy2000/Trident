@@ -147,7 +147,97 @@ export const POSITION_TRACKER_ABI = [
 ] as const
 
 export const ERC20_ABI = [
-  { name: 'decimals', type: 'function', stateMutability: 'view', inputs: [], outputs: [{ type: 'uint8' }] },
-  { name: 'symbol',   type: 'function', stateMutability: 'view', inputs: [], outputs: [{ type: 'string' }] },
-  { name: 'balanceOf',type: 'function', stateMutability: 'view', inputs: [{ name: 'account', type: 'address' }], outputs: [{ type: 'uint256' }] },
+  { name: 'decimals',  type: 'function', stateMutability: 'view',        inputs: [], outputs: [{ type: 'uint8' }] },
+  { name: 'symbol',    type: 'function', stateMutability: 'view',        inputs: [], outputs: [{ type: 'string' }] },
+  { name: 'balanceOf', type: 'function', stateMutability: 'view',        inputs: [{ name: 'account', type: 'address' }], outputs: [{ type: 'uint256' }] },
+  { name: 'allowance', type: 'function', stateMutability: 'view',        inputs: [{ name: 'owner', type: 'address' }, { name: 'spender', type: 'address' }], outputs: [{ type: 'uint256' }] },
+  { name: 'approve',   type: 'function', stateMutability: 'nonpayable',  inputs: [{ name: 'spender', type: 'address' }, { name: 'amount', type: 'uint256' }], outputs: [{ type: 'bool' }] },
+] as const
+
+// MockERC20 — adds open mint() for testnet faucet
+export const MOCK_ERC20_ABI = [
+  ...ERC20_ABI,
+  { name: 'mint', type: 'function', stateMutability: 'nonpayable', inputs: [{ name: 'to', type: 'address' }, { name: 'amount', type: 'uint256' }], outputs: [] },
+] as const
+
+// PoolManager — getSlot0 to read current sqrtPriceX96
+export const POOL_MANAGER_ABI = [
+  {
+    name: 'getSlot0',
+    type: 'function',
+    stateMutability: 'view',
+    inputs: [{ name: 'id', type: 'bytes32' }],
+    outputs: [
+      { name: 'sqrtPriceX96',       type: 'uint160' },
+      { name: 'tick',               type: 'int24'   },
+      { name: 'protocolFee',        type: 'uint24'  },
+      { name: 'lpFee',              type: 'uint24'  },
+    ],
+  },
+] as const
+
+// POOL_KEY tuple type used in SwapHelper / LiquidityHelper
+const POOL_KEY_TUPLE = {
+  name: 'key',
+  type: 'tuple',
+  components: [
+    { name: 'currency0',   type: 'address' },
+    { name: 'currency1',   type: 'address' },
+    { name: 'fee',         type: 'uint24'  },
+    { name: 'tickSpacing', type: 'int24'   },
+    { name: 'hooks',       type: 'address' },
+  ],
+} as const
+
+export const SWAP_HELPER_ABI = [
+  {
+    name: 'swap',
+    type: 'function',
+    stateMutability: 'nonpayable',
+    inputs: [
+      POOL_KEY_TUPLE,
+      {
+        name: 'params',
+        type: 'tuple',
+        components: [
+          { name: 'zeroForOne',       type: 'bool'    },
+          { name: 'amountSpecified',  type: 'int256'  },
+          { name: 'sqrtPriceLimitX96',type: 'uint160' },
+        ],
+      },
+      { name: 'recipient', type: 'address' },
+    ],
+    outputs: [{ name: 'delta', type: 'int256' }],
+  },
+] as const
+
+export const LIQUIDITY_HELPER_ABI = [
+  {
+    name: 'modifyLiquidity',
+    type: 'function',
+    stateMutability: 'nonpayable',
+    inputs: [
+      POOL_KEY_TUPLE,
+      { name: 'liquidityDelta', type: 'int256'   },
+      { name: 'tickLower',      type: 'int24'    },
+      { name: 'tickUpper',      type: 'int24'    },
+      { name: 'salt',           type: 'bytes32'  },
+    ],
+    outputs: [{ name: 'delta', type: 'int256' }],
+  },
+] as const
+
+export const MOCK_FEED_ABI = [
+  { name: 'latestAnswer', type: 'function', stateMutability: 'view',       inputs: [], outputs: [{ type: 'int256' }] },
+  { name: 'decimals',     type: 'function', stateMutability: 'view',       inputs: [], outputs: [{ type: 'uint8'  }] },
+  { name: 'setAnswer',    type: 'function', stateMutability: 'nonpayable', inputs: [{ name: '_answer', type: 'int256' }], outputs: [] },
+  {
+    name: 'AnswerUpdated',
+    type: 'event',
+    inputs: [
+      { name: 'current',   type: 'int256',  indexed: true  },
+      { name: 'roundId',   type: 'uint256', indexed: true  },
+      { name: 'updatedAt', type: 'uint256', indexed: false },
+    ],
+  },
 ] as const
