@@ -97,7 +97,8 @@ contract DeployReactive is Script {
 
         vm.startBroadcast(deployerKey);
 
-        TridentReactive reactive = new TridentReactive(
+        // Send 1 REACT with deployment — system contract deducts subscription fees from this balance
+        TridentReactive reactive = new TridentReactive{value: 1 ether}(
             destChainId,
             poolManager,
             chainlinkFeed,

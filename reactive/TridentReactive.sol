@@ -111,7 +111,7 @@ contract TridentReactive is AbstractPausableReactive {
         uint256 sqrtOracleDivisor,
         uint256 manipulationBps,
         uint256 initialOraclePrice
-    ) {
+    ) payable {
         DEST_CHAIN_ID = destChainId;
         POOL_MANAGER = poolManager;
         CHAINLINK_FEED = chainlinkFeed;
