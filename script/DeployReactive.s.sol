@@ -11,24 +11,42 @@ import {LPFeeLibrary} from "v4-core/libraries/LPFeeLibrary.sol";
 import {TridentReactive} from "../reactive/TridentReactive.sol";
 
 /// @title DeployReactive
-/// @notice Deploys TridentReactive to Reactive Network. This contract monitors Unichain
-///         events (Swap, ModifyLiquidity, Chainlink AnswerUpdated) and fires callbacks
-///         back to the ReactiveAdapter on Unichain.
+/// @notice Deploys TridentReactive to Reactive Network (Lasna testnet).
 ///
-/// Run AFTER Deploy.s.sol (you need REACTIVE_ADAPTER_ADDRESS from that output):
+/// ─── Reactive Network setup ───────────────────────────────────────────────────
+/// Chain ID:    5318007
+/// RPC:         https://lasna-rpc.rnk.dev/
+/// Explorer:    https://lasna-omni.reactscan.net/
+/// Faucet:      Send SepETH to 0x9b9BB25f1A81078C544C829c5EB7822d747Cf434 on Eth Sepolia
+///              (100 REACT per 1 SepETH, max 5 SepETH per tx)
+/// ─────────────────────────────────────────────────────────────────────────────
 ///
+/// Deploy sequence (run from your local machine):
+///
+///   # 1. Deploy TridentReactive on Lasna
+///   PRIVATE_KEY=0x... \
+///   REACTIVE_ADAPTER_ADDRESS=0x8E511863Cd5092ca7aF19b35611AA80bF06b7322 \
+///   POOL_MANAGER=0x00B036B58a818B1BC34d502D3fE730Db729e62AC \
+///   CHAINLINK_FEED=0xc34AD85bD0a4385b1d727b351108881e8C34628e \
+///   TOKEN0=0x09727dCebbdfC13BCaf2C03ACFc91AB14B27886b \
+///   TOKEN1=0x1BE9b1b76eD8d0d40DB33dCafDBCE0448e4FF200 \
+///   TRIDENT_HOOK_ADDRESS=0x1370d2f1244050A152F8a8A0922072bb54eBc6C0 \
+///   DEST_CHAIN_ID=1301 TICK_SPACING=60 SQRT_ORACLE_DIVISOR=10000000000 \
+///   MANIPULATION_THRESHOLD_BPS=200 INITIAL_ORACLE_PRICE=300000000000 \
 ///   forge script script/DeployReactive.s.sol \
-///     --rpc-url $REACTIVE_NETWORK_RPC \
-///     --broadcast \
-///     -vvvv
+///     --rpc-url https://lasna-rpc.rnk.dev/ \
+///     --broadcast -vvvv
 ///
-/// The deployed TridentReactive address becomes REACTIVE_ORIGIN_ADDRESS for Deploy.s.sol.
-/// If running for the first time:
-///   1. Run this script first — note the TridentReactive address.
-///   2. Run Deploy.s.sol with REACTIVE_ORIGIN_ADDRESS = <that address>.
+///   # 2. Note the TridentReactive address from above output
 ///
-/// Alternatively (pre-computed via CREATE2):
-///   Use DeployReactiveDeterministic.s.sol if you need to know the address in advance.
+///   # 3. Wire the adapter on Unichain with the TridentReactive address
+///   PRIVATE_KEY=0x... \
+///   REACTIVE_ADAPTER_ADDRESS=0x8E511863Cd5092ca7aF19b35611AA80bF06b7322 \
+///   TRIDENT_HOOK_ADDRESS=0x1370d2f1244050A152F8a8A0922072bb54eBc6C0 \
+///   TRIDENT_REACTIVE_ADDRESS=<address from step 2> \
+///   forge script script/WireReactive.s.sol \
+///     --rpc-url https://sepolia.unichain.org \
+///     --broadcast -vvvv
 contract DeployReactive is Script {
     using PoolIdLibrary for PoolKey;
 

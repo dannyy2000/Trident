@@ -19,9 +19,13 @@ import {IReactiveCallback} from "./interfaces/IReactiveCallback.sol";
 ///           - Changing either address requires the respective contract's owner.
 contract ReactiveAdapter {
     address public immutable hook;
-    address public immutable reactiveOrigin;
+    address public reactiveOrigin;
+    address public owner;
+
+    event ReactiveOriginUpdated(address indexed oldOrigin, address indexed newOrigin);
 
     error OnlyReactiveOrigin();
+    error OnlyOwner();
     error ZeroAddress();
 
     modifier onlyReactiveOrigin() {
@@ -29,10 +33,23 @@ contract ReactiveAdapter {
         _;
     }
 
+    modifier onlyOwner() {
+        if (msg.sender != owner) revert OnlyOwner();
+        _;
+    }
+
     constructor(address _hook, address _reactiveOrigin) {
-        if (_hook == address(0) || _reactiveOrigin == address(0)) revert ZeroAddress();
+        if (_hook == address(0)) revert ZeroAddress();
         hook = _hook;
-        reactiveOrigin = _reactiveOrigin;
+        reactiveOrigin = _reactiveOrigin; // may be address(0) initially
+        owner = msg.sender;
+    }
+
+    /// @notice Update reactiveOrigin after TridentReactive is deployed on Reactive Network.
+    function setReactiveOrigin(address newOrigin) external onlyOwner {
+        if (newOrigin == address(0)) revert ZeroAddress();
+        emit ReactiveOriginUpdated(reactiveOrigin, newOrigin);
+        reactiveOrigin = newOrigin;
     }
 
     // -------------------------------------------------------------------------
