@@ -283,12 +283,6 @@ export function LiquidityPanel() {
         )}
       </div>
 
-      {liquidityDelta !== 0n && (
-        <p className="text-xs text-gray-600 font-mono">
-          liquidityDelta = {liquidityDelta.toString()}
-        </p>
-      )}
-
       {/* Approve buttons */}
       {mode === 'add' && (needsApprove0 || needsApprove1) && (
         <div className="flex gap-2">
