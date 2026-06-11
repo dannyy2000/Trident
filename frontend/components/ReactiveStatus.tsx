@@ -38,7 +38,7 @@ export function ReactiveStatus() {
   // Use last swap event arb premium when previewFee shows 0 (no primed state yet)
   const effectiveArb = arbPremium > 0 ? arbPremium : (latestEvent?.arbPremiumBps ?? 0)
   const arbPct = effectiveArb > 0
-    ? (effectiveArb / 10_000 * 100).toFixed(4) + '%'
+    ? (effectiveArb / 10_000).toFixed(4) + '%'
     : null
 
   return (

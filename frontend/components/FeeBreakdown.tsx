@@ -32,10 +32,10 @@ export function FeeBreakdown() {
   const latest = events[0]
 
   // When no Reactive callback has primed the state, use the last swap event's values
-  const displayArb      = arbPremium      > 0 ? arbPremium      : (latest?.arbPremiumBps      ?? 0)
-  const displayBoundary = boundaryPremium > 0 ? boundaryPremium : (latest?.boundaryPremiumBps ?? 0)
-  const displayTotal    = totalFee        > 0 ? totalFee        : (latest?.totalFee            ?? baseFee)
   const fromEvent       = arbPremium === 0 && (latest?.arbPremiumBps ?? 0) > 0
+  const displayArb      = fromEvent ? (latest?.arbPremiumBps      ?? 0) : arbPremium
+  const displayBoundary = fromEvent ? (latest?.boundaryPremiumBps ?? 0) : boundaryPremium
+  const displayTotal    = fromEvent ? (latest?.totalFee            ?? baseFee) : totalFee
 
   return (
     <div className="bg-gray-900 border border-gray-800 rounded-xl p-5 space-y-4">
