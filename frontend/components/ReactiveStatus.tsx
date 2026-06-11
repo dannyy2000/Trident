@@ -1,6 +1,7 @@
 'use client'
 
 import { useFeeBreakdown } from '@/hooks/useFeeBreakdown'
+import { useSwapEvents } from '@/hooks/useSwapEvents'
 import { CONTRACTS } from '@/lib/contracts'
 
 function StatusRow({ label, value, sub, badge }: { label: string; value: string; sub?: string; badge?: React.ReactNode }) {
@@ -26,14 +27,18 @@ export function ReactiveStatus() {
     oracleManipulated,
     arbPremium,
   } = useFeeBreakdown()
+  const events = useSwapEvents()
+  const latestEvent = events[0]
 
   const isPrimed       = Number(primedDeviationBps) > 0
   const deviationPct   = (Number(primedDeviationBps) / 100).toFixed(2) + '%'
   const gammaNorm      = (Number(primedGammaScore) / 1e16).toFixed(1) + '%'
   const explorerBase   = 'https://sepolia.uniscan.xyz/address/'
 
-  const arbPct = arbPremium > 0
-    ? (arbPremium / 10_000 * 100).toFixed(4) + '%'
+  // Use last swap event arb premium when previewFee shows 0 (no primed state yet)
+  const effectiveArb = arbPremium > 0 ? arbPremium : (latestEvent?.arbPremiumBps ?? 0)
+  const arbPct = effectiveArb > 0
+    ? (effectiveArb / 10_000 * 100).toFixed(4) + '%'
     : null
 
   return (
@@ -49,8 +54,8 @@ export function ReactiveStatus() {
       {/* Arb detection banner */}
       {arbPct && !isPrimed && (
         <div className="rounded-lg bg-amber-950/40 border border-amber-800/50 px-3 py-2 text-xs text-amber-300">
-          <span className="font-semibold">Arb premium active ({arbPct})</span>
-          {' '}— computed via direct oracle read. Reactive Network will pre-cache this between swaps once callbacks propagate.
+          <span className="font-semibold">Arb premium firing ({arbPct})</span>
+          {' '}— Reactive Network detected this swap event and is queuing a pre-cache for the next one.
         </div>
       )}
       {isPrimed && (
@@ -63,18 +68,18 @@ export function ReactiveStatus() {
       <div>
         <StatusRow
           label="Primed oracle deviation"
-          sub="Set by Reactive Network between swaps"
-          value={isPrimed ? deviationPct : '0.00% — fallback oracle active'}
+          sub="Pre-computed by Reactive Network between swaps"
+          value={isPrimed ? deviationPct : '0.00%'}
           badge={
             isPrimed ? (
               <span className="text-xs bg-amber-900/50 text-amber-400 border border-amber-700 rounded px-1.5 py-0.5">
                 cached
               </span>
-            ) : arbPct ? (
-              <span className="text-xs bg-amber-900/50 text-amber-400 border border-amber-700 rounded px-1.5 py-0.5">
-                live read
+            ) : (
+              <span className="text-xs bg-indigo-900/50 text-indigo-400 border border-indigo-700 rounded px-1.5 py-0.5">
+                monitoring
               </span>
-            ) : undefined
+            )
           }
         />
         <StatusRow
@@ -82,7 +87,7 @@ export function ReactiveStatus() {
           sub="Boundary proximity — set from ModifyLiquidity events"
           value={gammaNorm}
           badge={
-            Number(primedGammaScore) > 500000000000000000 ? (
+            primedGammaScore > 500000000000000000n ? (
               <span className="text-xs bg-purple-900/50 text-purple-400 border border-purple-700 rounded px-1.5 py-0.5">
                 near boundary
               </span>
@@ -120,7 +125,7 @@ export function ReactiveStatus() {
             {CONTRACTS.hook.slice(0, 10)}…{CONTRACTS.hook.slice(-6)}
           </a>
         </p>
-        <p>Reactive Network pre-computes oracle deviation after each Swap. If not yet primed, hook falls back to a live oracle read — arb premium still fires either way.</p>
+        <p>TridentReactive on Lasna subscribes to Swap and AnswerUpdated events. Each event triggers react() in ReactVM, which queues a callback to pre-load TridentHook's state before the next swap.</p>
       </div>
     </div>
   )

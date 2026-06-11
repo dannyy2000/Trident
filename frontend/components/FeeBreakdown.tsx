@@ -1,6 +1,7 @@
 'use client'
 
 import { useFeeBreakdown, bpsToPct } from '@/hooks/useFeeBreakdown'
+import { useSwapEvents } from '@/hooks/useSwapEvents'
 
 type FeeBarProps = { label: string; value: number; color: string; tooltip: string }
 
@@ -27,6 +28,14 @@ function FeeBar({ label, value, color, tooltip }: FeeBarProps) {
 
 export function FeeBreakdown() {
   const { baseFee, arbPremium, boundaryPremium, totalFee, oracleManipulated, isLoading } = useFeeBreakdown()
+  const events = useSwapEvents()
+  const latest = events[0]
+
+  // When no Reactive callback has primed the state, use the last swap event's values
+  const displayArb      = arbPremium      > 0 ? arbPremium      : (latest?.arbPremiumBps      ?? 0)
+  const displayBoundary = boundaryPremium > 0 ? boundaryPremium : (latest?.boundaryPremiumBps ?? 0)
+  const displayTotal    = totalFee        > 0 ? totalFee        : (latest?.totalFee            ?? baseFee)
+  const fromEvent       = arbPremium === 0 && (latest?.arbPremiumBps ?? 0) > 0
 
   return (
     <div className="bg-gray-900 border border-gray-800 rounded-xl p-5 space-y-4">
@@ -55,13 +64,13 @@ export function FeeBreakdown() {
           />
           <FeeBar
             label="Arb premium (Layer 1)"
-            value={arbPremium}
+            value={displayArb}
             color="#f59e0b"
             tooltip="Oracle deviation detected — arb bot pays elevated fee"
           />
           <FeeBar
             label="Boundary premium (Layer 2)"
-            value={boundaryPremium}
+            value={displayBoundary}
             color="#8b5cf6"
             tooltip="Gamma risk — price near LP range boundary"
           />
@@ -70,7 +79,7 @@ export function FeeBreakdown() {
             <div className="flex justify-between items-center">
               <span className="text-sm font-medium text-white">Total fee</span>
               <span className="text-xl font-bold font-mono text-indigo-400">
-                {bpsToPct(totalFee)}
+                {bpsToPct(displayTotal)}
               </span>
             </div>
             <div className="h-3 bg-gray-800 rounded-full overflow-hidden mt-2">
@@ -84,7 +93,9 @@ export function FeeBreakdown() {
       )}
 
       <p className="text-xs text-gray-600">
-        Updates every 10s from hook.previewFee() — reflects current primed state.
+        {fromEvent
+          ? `Showing last swap fee — block #${latest?.blockNumber?.toString()}`
+          : 'Updates every 10s from hook.previewFee() — reflects current primed state.'}
       </p>
     </div>
   )

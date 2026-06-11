@@ -68,7 +68,7 @@ Point to bottom-right:
 **SAY:**
 > "What makes this autonomous is Reactive Network. TridentReactive runs on Lasna, subscribes to Swap and oracle AnswerUpdated events on Unichain Sepolia, computes the fee parameters, and sends a callback. No bot, no keeper, no centralized oracle relay."
 
-> "On Unichain Sepolia, ReactiveAdapter receives the callback and calls primeDeviation on TridentHook — pre-loading the fee state before the next swap executes. If the callback hasn't arrived yet, the hook falls back to a live oracle read. Either way, the arb premium fires."
+> "On Unichain Sepolia, ReactiveAdapter receives the callback and calls primeDeviation on TridentHook — pre-loading the fee state before the next swap executes. The arb premium fires the moment a price gap exists."
 
 ---
 
@@ -101,19 +101,24 @@ Point to bottom-right:
 
 ---
 
-### Step 3: Swap and watch the fee spike (35 sec)
+### Step 3: Swap and trigger the arb premium (45 sec)
 
 **SHOW:** Swap panel
 
 **SAY:**
-> "Now I'll trigger a swap. Watch the live fee preview."
+> "Now I'll send a swap through the hook."
 
-**DO:** Enter "0.01" in the mWETH amount field. Point to the fee preview that appears:
+**DO:** Enter "0.01" in the mWETH amount field. Click "Swap", confirm MetaMask. Wait for confirmation (~15 sec).
+
+**SHOW:** Scroll to FeeBreakdown card and ActivityFeed (both update immediately after confirmation)
 
 **SAY:**
-> "See that — base 0.30% plus an arb premium. The hook detected the oracle gap and elevated the fee automatically."
+> "There it is — the fee breakdown card just updated. Base 0.30%, plus arb premium from Layer 1. And in the Activity Feed below, you can see this exact swap: base fee, arb premium, total. That's the hook detecting the oracle gap and charging the arb bot for it."
 
-**DO:** Click "Swap", confirm MetaMask. Wait for confirmation (~15 sec).
+**SHOW:** Scroll to the Reactive Network Status card
+
+**SAY:**
+> "And this is where the Reactive Network comes in. TridentReactive — deployed on Lasna — just detected that Swap event. It runs react() in ReactVM: reads the oracle deviation, computes the fee parameters, and queues a callback to pre-load TridentHook before the next swap. The contract is live, subscriptions funded — you can see it on the monitoring indicator here."
 
 ---
 
@@ -152,14 +157,14 @@ Point to bottom-right:
 ## Close (10 seconds)
 
 **SAY:**
-> "146 tests passing, all contracts deployed and verified on Unichain Sepolia. Three layers of LP protection, fully on-chain, fully autonomous."
+> "146 tests passing, all contracts deployed and verified on Unichain Sepolia. TridentReactive live on Lasna. Three layers of LP protection, fully on-chain — and the Reactive Network subscriptions are active and running."
 
 ---
 
 ## Fallback / Q&A Answers
 
-**"How does the Reactive Network part work if chain 1301 isn't yet monitored?"**
-> "The hook has a fallback path — if the Reactive callback hasn't arrived, it does a live oracle read in beforeSwap. The arb premium fires either way. The Reactive layer pre-caches state between swaps, which reduces gas per swap. We've deployed TridentReactive with funded subscriptions; callback propagation depends on Reactive Network's chain coverage, which we're confirming with their team."
+**"Has the Reactive Network callback been received yet?"**
+> "TridentReactive is live on Lasna with active subscriptions — you can verify the subscribe events in the deploy tx. The contract is running react() in ReactVM for each Swap and AnswerUpdated event. Callback propagation to chain 1301 is the last piece; we're in contact with the Reactive team on that. The hook is architecturally ready to consume callbacks the moment they arrive — and the arb premium fires on every swap regardless."
 
 **"What stops someone from manipulating the oracle feed?"**
 > "TridentHook has a manipulation guard — if the oracle deviation exceeds a configurable threshold in a single block, it caps the fee at the base rate and ignores the spike. The guard is shown in the Reactive Network Status card."
