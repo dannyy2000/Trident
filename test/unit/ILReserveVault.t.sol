@@ -337,9 +337,7 @@ contract ILReserveVaultTest is Test {
     // Fuzz tests
     // =========================================================================
 
-    function testFuzz_payout_neverExceedsReserve(uint256 depositAmount, uint256 tickMove, uint256 blocksHeld)
-        public
-    {
+    function testFuzz_payout_neverExceedsReserve(uint256 depositAmount, uint256 tickMove, uint256 blocksHeld) public {
         depositAmount = bound(depositAmount, 1e6, 1_000_000e18);
         tickMove = bound(tickMove, 0, 50_000);
         blocksHeld = bound(blocksHeld, 0, vault.LOYALTY_TARGET_BLOCKS() * 2);

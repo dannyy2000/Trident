@@ -45,7 +45,9 @@ contract TestERC20 {
     event Approval(address indexed owner, address indexed spender, uint256 amount);
 
     constructor(string memory _name, string memory _sym, uint8 _dec) {
-        name = _name; symbol = _sym; decimals = _dec;
+        name = _name;
+        symbol = _sym;
+        decimals = _dec;
     }
 
     function mint(address to, uint256 amount) external {
@@ -128,9 +130,9 @@ contract FullFlowTest is Test {
     // -------------------------------------------------------------------------
     // Test actors
     // -------------------------------------------------------------------------
-    address internal LP      = makeAddr("lp");
-    address internal TRADER  = makeAddr("trader");
-    address internal OWNER   = makeAddr("owner");
+    address internal LP = makeAddr("lp");
+    address internal TRADER = makeAddr("trader");
+    address internal OWNER = makeAddr("owner");
     address internal REACTIVE = makeAddr("reactive");
 
     // -------------------------------------------------------------------------
@@ -143,17 +145,13 @@ contract FullFlowTest is Test {
 
     // Required hook flags for TridentHook
     // BEFORE_SWAP(7) | AFTER_SWAP(6) | AFTER_ADD_LIQUIDITY(10) | BEFORE_REMOVE_LIQUIDITY(9)
-    uint160 constant HOOK_FLAGS =
-        Hooks.BEFORE_SWAP_FLAG | Hooks.AFTER_SWAP_FLAG |
-        Hooks.AFTER_ADD_LIQUIDITY_FLAG | Hooks.BEFORE_REMOVE_LIQUIDITY_FLAG;
+    uint160 constant HOOK_FLAGS = Hooks.BEFORE_SWAP_FLAG | Hooks.AFTER_SWAP_FLAG | Hooks.AFTER_ADD_LIQUIDITY_FLAG
+        | Hooks.BEFORE_REMOVE_LIQUIDITY_FLAG;
 
     // The hook address — pre-set with correct flag bits, code etched in setUp.
     // Pattern mirrors Deployers.sol: take max uint160, clear all hook bits, OR in desired flags.
-    address immutable HOOK_ADDR = address(
-        uint160(
-            (uint256(type(uint160).max) & ~uint256(uint160(Hooks.ALL_HOOK_MASK))) | uint256(HOOK_FLAGS)
-        )
-    );
+    address immutable HOOK_ADDR =
+        address(uint160((uint256(type(uint160).max) & ~uint256(uint160(Hooks.ALL_HOOK_MASK))) | uint256(HOOK_FLAGS)));
 
     // -------------------------------------------------------------------------
     // Sqr price for pool initialisation — roughly $2000 ETH/USDC
@@ -172,9 +170,11 @@ contract FullFlowTest is Test {
 
         // Ensure correct ordering (v4 requires currency0 < currency1)
         if (address(tokenA) < address(tokenB)) {
-            token0 = tokenA; token1 = tokenB;
+            token0 = tokenA;
+            token1 = tokenB;
         } else {
-            token0 = tokenB; token1 = tokenA;
+            token0 = tokenB;
+            token1 = tokenA;
         }
         currency0 = Currency.wrap(address(token0));
         currency1 = Currency.wrap(address(token1));
@@ -202,8 +202,8 @@ contract FullFlowTest is Test {
             gammaScorer,
             IILReserveVault(address(vault)),
             tracker,
-            3_000,    // baseFee — 0.3% in v4 pips
-            1e30,     // decimalAdjustment for token0(18)/token1(6): 10^(18-6+18)=10^30
+            3_000, // baseFee — 0.3% in v4 pips
+            1e30, // decimalAdjustment for token0(18)/token1(6): 10^(18-6+18)=10^30
             REACTIVE,
             OWNER
         );
@@ -237,8 +237,8 @@ contract FullFlowTest is Test {
         poolManager.initialize(poolKey, SQRT_PRICE_1_1);
 
         // ── Mint tokens to LP and trader ─────────────────────────────────────
-        token0.mint(LP,     100_000e18);
-        token1.mint(LP,     100_000e18);
+        token0.mint(LP, 100_000e18);
+        token1.mint(LP, 100_000e18);
         token0.mint(TRADER, 100_000e18);
         token1.mint(TRADER, 100_000e18);
 
@@ -273,12 +273,7 @@ contract FullFlowTest is Test {
         vm.prank(LP);
         modifyLiquidityRouter.modifyLiquidity(
             poolKey,
-            ModifyLiquidityParams({
-                tickLower: -120,
-                tickUpper: 120,
-                liquidityDelta: 1_000_000e6,
-                salt: bytes32(0)
-            }),
+            ModifyLiquidityParams({tickLower: -120, tickUpper: 120, liquidityDelta: 1_000_000e6, salt: bytes32(0)}),
             ""
         );
 
@@ -296,12 +291,7 @@ contract FullFlowTest is Test {
         vm.prank(LP);
         modifyLiquidityRouter.modifyLiquidity(
             poolKey,
-            ModifyLiquidityParams({
-                tickLower: -6000,
-                tickUpper: 6000,
-                liquidityDelta: 10_000_000e6,
-                salt: bytes32(0)
-            }),
+            ModifyLiquidityParams({tickLower: -6000, tickUpper: 6000, liquidityDelta: 10_000_000e6, salt: bytes32(0)}),
             ""
         );
 
@@ -346,12 +336,7 @@ contract FullFlowTest is Test {
         vm.prank(LP);
         modifyLiquidityRouter.modifyLiquidity(
             poolKey,
-            ModifyLiquidityParams({
-                tickLower: -6000,
-                tickUpper: 6000,
-                liquidityDelta: 10_000_000e6,
-                salt: bytes32(0)
-            }),
+            ModifyLiquidityParams({tickLower: -6000, tickUpper: 6000, liquidityDelta: 10_000_000e6, salt: bytes32(0)}),
             ""
         );
 
@@ -377,11 +362,7 @@ contract FullFlowTest is Test {
         vm.prank(TRADER);
         swapRouter.swap(
             poolKey,
-            SwapParams({
-                zeroForOne: true,
-                amountSpecified: -5_000e18,
-                sqrtPriceLimitX96: TickMath.MIN_SQRT_PRICE + 1
-            }),
+            SwapParams({zeroForOne: true, amountSpecified: -5_000e18, sqrtPriceLimitX96: TickMath.MIN_SQRT_PRICE + 1}),
             PoolSwapTest.TestSettings({takeClaims: false, settleUsingBurn: false}),
             ""
         );
@@ -399,12 +380,7 @@ contract FullFlowTest is Test {
         vm.prank(LP);
         modifyLiquidityRouter.modifyLiquidity(
             poolKey,
-            ModifyLiquidityParams({
-                tickLower: -6000,
-                tickUpper: 6000,
-                liquidityDelta: -10_000_000e6,
-                salt: bytes32(0)
-            }),
+            ModifyLiquidityParams({tickLower: -6000, tickUpper: 6000, liquidityDelta: -10_000_000e6, salt: bytes32(0)}),
             ""
         );
 
@@ -459,12 +435,7 @@ contract FullFlowTest is Test {
         vm.prank(LP);
         modifyLiquidityRouter.modifyLiquidity(
             poolKey,
-            ModifyLiquidityParams({
-                tickLower: -6000,
-                tickUpper: 6000,
-                liquidityDelta: 10_000_000e6,
-                salt: bytes32(0)
-            }),
+            ModifyLiquidityParams({tickLower: -6000, tickUpper: 6000, liquidityDelta: 10_000_000e6, salt: bytes32(0)}),
             ""
         );
 
@@ -473,11 +444,7 @@ contract FullFlowTest is Test {
         vm.prank(TRADER);
         swapRouter.swap(
             poolKey,
-            SwapParams({
-                zeroForOne: true,
-                amountSpecified: -1_000e18,
-                sqrtPriceLimitX96: TickMath.MIN_SQRT_PRICE + 1
-            }),
+            SwapParams({zeroForOne: true, amountSpecified: -1_000e18, sqrtPriceLimitX96: TickMath.MIN_SQRT_PRICE + 1}),
             PoolSwapTest.TestSettings({takeClaims: false, settleUsingBurn: false}),
             ""
         );

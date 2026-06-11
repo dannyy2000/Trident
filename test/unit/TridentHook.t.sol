@@ -22,9 +22,9 @@ import {IPoolManager} from "v4-core/interfaces/IPoolManager.sol";
 // ---------------------------------------------------------------------------
 
 contract MockPoolManager {
-    // TridentHook only calls getSlot0 via StateLibrary (extsload)
-    // For unit tests we don't exercise beforeSwap/afterSwap through PoolManager,
-    // so a stub address is sufficient for construction.
+// TridentHook only calls getSlot0 via StateLibrary (extsload)
+// For unit tests we don't exercise beforeSwap/afterSwap through PoolManager,
+// so a stub address is sufficient for construction.
 }
 
 contract MockOracleReader is IOracleReader {
@@ -32,24 +32,47 @@ contract MockOracleReader is IOracleReader {
     uint256 public deviationBps;
     bool public manipulated;
 
-    function getPrice() external view override returns (uint256) { return price; }
-    function getDeviationBps(uint256) external view override returns (uint256) { return deviationBps; }
-    function isOracleManipulated(uint256) external view override returns (bool) { return manipulated; }
+    function getPrice() external view override returns (uint256) {
+        return price;
+    }
 
-    function setDeviation(uint256 bps) external { deviationBps = bps; }
+    function getDeviationBps(uint256) external view override returns (uint256) {
+        return deviationBps;
+    }
+
+    function isOracleManipulated(uint256) external view override returns (bool) {
+        return manipulated;
+    }
+
+    function setDeviation(uint256 bps) external {
+        deviationBps = bps;
+    }
 }
 
 contract MockERC20Min {
     mapping(address => uint256) public balanceOf;
     mapping(address => mapping(address => uint256)) public allowance;
 
-    function mint(address to, uint256 amt) external { balanceOf[to] += amt; }
-    function approve(address s, uint256 a) external returns (bool) { allowance[msg.sender][s] = a; return true; }
-    function transfer(address to, uint256 a) external returns (bool) {
-        balanceOf[msg.sender] -= a; balanceOf[to] += a; return true;
+    function mint(address to, uint256 amt) external {
+        balanceOf[to] += amt;
     }
+
+    function approve(address s, uint256 a) external returns (bool) {
+        allowance[msg.sender][s] = a;
+        return true;
+    }
+
+    function transfer(address to, uint256 a) external returns (bool) {
+        balanceOf[msg.sender] -= a;
+        balanceOf[to] += a;
+        return true;
+    }
+
     function transferFrom(address f, address t, uint256 a) external returns (bool) {
-        balanceOf[f] -= a; allowance[f][msg.sender] -= a; balanceOf[t] += a; return true;
+        balanceOf[f] -= a;
+        allowance[f][msg.sender] -= a;
+        balanceOf[t] += a;
+        return true;
     }
 }
 

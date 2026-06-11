@@ -36,14 +36,14 @@ import {TridentReactive} from "../reactive/TridentReactive.sol";
 /// It should be non-zero if react() fired.
 contract RedeployReactive is Script {
     // ── Unichain Sepolia addresses (existing, do not change) ─────────────────
-    address constant POOL_MANAGER    = 0x00B036B58a818B1BC34d502D3fE730Db729e62AC;
-    address constant CHAINLINK_FEED  = 0x467A074ADE6B5D828cd57EB2CeC76Cc396ca6Db6;
+    address constant POOL_MANAGER = 0x00B036B58a818B1BC34d502D3fE730Db729e62AC;
+    address constant CHAINLINK_FEED = 0x467A074ADE6B5D828cd57EB2CeC76Cc396ca6Db6;
     address constant REACTIVE_ADAPTER = 0x7DAd5E3b0A4AfA91414b30AdBf64E33954278b0c;
 
     // ── Pool parameters ───────────────────────────────────────────────────────
-    uint256 constant DEST_CHAIN_ID   = 1301;
-    bytes32 constant POOL_ID         = 0x5e1589e36bf91d1b848851741701815f43d2b750dd64b05135b771f340b1d4e6;
-    int24   constant TICK_SPACING    = 60;
+    uint256 constant DEST_CHAIN_ID = 1301;
+    bytes32 constant POOL_ID = 0x5e1589e36bf91d1b848851741701815f43d2b750dd64b05135b771f340b1d4e6;
+    int24 constant TICK_SPACING = 60;
     // sqrt(10^(8 + 18 - 6)) = sqrt(10^20) = 1e10  (ETH/USD feed 8dec, WETH 18dec, USDC 6dec)
     uint256 constant SQRT_ORACLE_DIVISOR = 10_000_000_000;
     // Latest Chainlink answer at deploy — will be updated live via AnswerUpdated events

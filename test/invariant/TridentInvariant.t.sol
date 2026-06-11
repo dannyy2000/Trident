@@ -16,13 +16,26 @@ contract InvariantToken {
     string public symbol = "TST";
     uint8 public decimals = 18;
 
-    function mint(address to, uint256 amount) external { balanceOf[to] += amount; }
-    function approve(address s, uint256 a) external returns (bool) { allowance[msg.sender][s] = a; return true; }
-    function transfer(address to, uint256 a) external returns (bool) {
-        balanceOf[msg.sender] -= a; balanceOf[to] += a; return true;
+    function mint(address to, uint256 amount) external {
+        balanceOf[to] += amount;
     }
+
+    function approve(address s, uint256 a) external returns (bool) {
+        allowance[msg.sender][s] = a;
+        return true;
+    }
+
+    function transfer(address to, uint256 a) external returns (bool) {
+        balanceOf[msg.sender] -= a;
+        balanceOf[to] += a;
+        return true;
+    }
+
     function transferFrom(address f, address t, uint256 a) external returns (bool) {
-        balanceOf[f] -= a; allowance[f][msg.sender] -= a; balanceOf[t] += a; return true;
+        balanceOf[f] -= a;
+        allowance[f][msg.sender] -= a;
+        balanceOf[t] += a;
+        return true;
     }
 }
 
@@ -187,10 +200,7 @@ contract TridentInvariantTest is Test {
     // Proves: every deposit adds to reserve, every payout subtracts — no leakage.
     // =========================================================================
     function invariant_reserveEqualsNetFlow() public view {
-        assertEq(
-            vault.totalReserveBalance(),
-            handler.ghost_totalDeposited() - handler.ghost_totalPaidOut()
-        );
+        assertEq(vault.totalReserveBalance(), handler.ghost_totalDeposited() - handler.ghost_totalPaidOut());
     }
 
     // =========================================================================

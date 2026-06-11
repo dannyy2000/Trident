@@ -54,8 +54,8 @@ contract ILReserveVault is IILReserveVault, ReentrancyGuard {
     uint256 public constant HEALTH_EMERGENCY = 0.3e18;
 
     // Capture rate tiers (basis points)
-    uint256 public constant CAPTURE_NORMAL_BPS = 1_000;    // 10%
-    uint256 public constant CAPTURE_LOW_BPS = 1_500;       // 15%
+    uint256 public constant CAPTURE_NORMAL_BPS = 1_000; // 10%
+    uint256 public constant CAPTURE_LOW_BPS = 1_500; // 15%
     uint256 public constant CAPTURE_EMERGENCY_BPS = 2_000; // 20%
 
     // -------------------------------------------------------------------------
@@ -127,13 +127,8 @@ contract ILReserveVault is IILReserveVault, ReentrancyGuard {
     {
         if (_positions[positionId].exists) revert PositionAlreadyExists(positionId);
 
-        _positions[positionId] = VaultPosition({
-            exists: true,
-            lp: lp,
-            entryTick: entryTick,
-            liquidity: liquidity,
-            entryBlock: block.number
-        });
+        _positions[positionId] =
+            VaultPosition({exists: true, lp: lp, entryTick: entryTick, liquidity: liquidity, entryBlock: block.number});
 
         // Increase liability by the worst-case claim for this position
         totalLiability += _worstCaseClaim(liquidity);

@@ -41,9 +41,9 @@ interface IILReserveVault {
 contract SeedVault is Script {
     function run() external {
         uint256 deployerKey = vm.envUint("PRIVATE_KEY");
-        address hook        = vm.envAddress("TRIDENT_HOOK");
-        address token0      = vm.envAddress("TOKEN0");
-        address vault       = vm.envAddress("IL_RESERVE_VAULT");
+        address hook = vm.envAddress("TRIDENT_HOOK");
+        address token0 = vm.envAddress("TOKEN0");
+        address vault = vm.envAddress("IL_RESERVE_VAULT");
 
         // Read how much the hook thinks it needs to flush
         uint256 pending = ITridentHook(hook).pendingCapture(token0);

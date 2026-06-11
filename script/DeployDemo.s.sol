@@ -3,10 +3,10 @@ pragma solidity ^0.8.26;
 
 import {Script, console2} from "forge-std/Script.sol";
 import {MockChainlinkFeed} from "../src/demo/MockChainlinkFeed.sol";
-import {MockERC20}          from "../src/demo/MockERC20.sol";
-import {SwapHelper}         from "../src/demo/SwapHelper.sol";
-import {LiquidityHelper}    from "../src/demo/LiquidityHelper.sol";
-import {IPoolManager}       from "v4-core/interfaces/IPoolManager.sol";
+import {MockERC20} from "../src/demo/MockERC20.sol";
+import {SwapHelper} from "../src/demo/SwapHelper.sol";
+import {LiquidityHelper} from "../src/demo/LiquidityHelper.sol";
+import {IPoolManager} from "v4-core/interfaces/IPoolManager.sol";
 
 /// @notice Deploys all demo-only infrastructure in one shot:
 ///           1. MockChainlinkFeed  (nonce N)
@@ -27,19 +27,19 @@ import {IPoolManager}       from "v4-core/interfaces/IPoolManager.sol";
 ///   USDC_MINT_AMOUNT          - additional MockUSDC to mint to deployer, e.g. 300000000000 (=300,000 USDC)
 contract DeployDemo is Script {
     function run() external {
-        uint256 pk          = vm.envUint("PRIVATE_KEY");
-        address pm          = vm.envAddress("POOL_MANAGER");
-        int256  price       = int256(vm.envUint("INITIAL_ETH_USD_PRICE"));
-        uint8   feedDec     = uint8(vm.envUint("FEED_DECIMALS"));
-        address mockUSDC    = vm.envAddress("MOCK_USDC_ADDRESS");
-        uint256 wethMint    = vm.envUint("WETH_MINT_AMOUNT");
-        uint256 usdcMint    = vm.envUint("USDC_MINT_AMOUNT");
-        address deployer    = vm.addr(pk);
+        uint256 pk = vm.envUint("PRIVATE_KEY");
+        address pm = vm.envAddress("POOL_MANAGER");
+        int256 price = int256(vm.envUint("INITIAL_ETH_USD_PRICE"));
+        uint8 feedDec = uint8(vm.envUint("FEED_DECIMALS"));
+        address mockUSDC = vm.envAddress("MOCK_USDC_ADDRESS");
+        uint256 wethMint = vm.envUint("WETH_MINT_AMOUNT");
+        uint256 usdcMint = vm.envUint("USDC_MINT_AMOUNT");
+        address deployer = vm.addr(pk);
 
         vm.startBroadcast(pk);
 
         // 1. MockChainlinkFeed
-        MockChainlinkFeed feed  = new MockChainlinkFeed(price, feedDec);
+        MockChainlinkFeed feed = new MockChainlinkFeed(price, feedDec);
 
         // 2. MockWETH — deployed at nonce N+1; predicted lower than MockUSDC → becomes token0
         MockERC20 weth = new MockERC20("Mock WETH", "mWETH", 18);
@@ -49,8 +49,8 @@ contract DeployDemo is Script {
         MockERC20(mockUSDC).mint(deployer, usdcMint);
 
         // 3 & 4. Routers
-        SwapHelper       swapH = new SwapHelper(IPoolManager(pm));
-        LiquidityHelper  liqH  = new LiquidityHelper(IPoolManager(pm));
+        SwapHelper swapH = new SwapHelper(IPoolManager(pm));
+        LiquidityHelper liqH = new LiquidityHelper(IPoolManager(pm));
 
         vm.stopBroadcast();
 

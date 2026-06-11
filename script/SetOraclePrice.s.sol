@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.26;
 
-import {Script, console2}    from "forge-std/Script.sol";
-import {MockChainlinkFeed}   from "../src/demo/MockChainlinkFeed.sol";
+import {Script, console2} from "forge-std/Script.sol";
+import {MockChainlinkFeed} from "../src/demo/MockChainlinkFeed.sol";
 
 /// @notice Update the mock Chainlink feed price.
 ///         Use during demo to simulate oracle/pool price divergence and trigger arb premium.
@@ -13,9 +13,9 @@ import {MockChainlinkFeed}   from "../src/demo/MockChainlinkFeed.sol";
 ///   NEW_PRICE          - new answer in feed decimals (e.g. 350000000000 for $3500 with 8 decimals)
 contract SetOraclePrice is Script {
     function run() external {
-        uint256 pk    = vm.envUint("PRIVATE_KEY");
-        address feed  = vm.envAddress("MOCK_FEED_ADDRESS");
-        int256  price = int256(vm.envUint("NEW_PRICE"));
+        uint256 pk = vm.envUint("PRIVATE_KEY");
+        address feed = vm.envAddress("MOCK_FEED_ADDRESS");
+        int256 price = int256(vm.envUint("NEW_PRICE"));
 
         vm.startBroadcast(pk);
         MockChainlinkFeed(feed).setAnswer(price);

@@ -1,4 +1,3 @@
-
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.26;
 
@@ -38,9 +37,8 @@ contract GammaScorer {
 
         // Absolute tick distance — safe because valid Uniswap ticks are in [-887272, 887272]
         // so the max diff is 1_774_544, well within int24 range (8_388_607)
-        int24 rawDiff = currentTick >= nearestBoundaryTick
-            ? currentTick - nearestBoundaryTick
-            : nearestBoundaryTick - currentTick;
+        int24 rawDiff =
+            currentTick >= nearestBoundaryTick ? currentTick - nearestBoundaryTick : nearestBoundaryTick - currentTick;
 
         // How many full tick-spacing steps away is the boundary?
         // Integer division floors toward zero — a partial step counts as zero extra spacings.

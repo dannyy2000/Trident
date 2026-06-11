@@ -2,7 +2,7 @@
 pragma solidity ^0.8.26;
 
 import {Script, console2} from "forge-std/Script.sol";
-import {MockERC20}         from "../src/demo/MockERC20.sol";
+import {MockERC20} from "../src/demo/MockERC20.sol";
 
 /// @notice Deploys a mintable mock USDC for testnet demos.
 ///         WETH is the native wrapped ETH at 0x4200000000000000000000000000000000000006.
@@ -19,9 +19,9 @@ contract DeployTokens is Script {
     address constant WETH = 0x4200000000000000000000000000000000000006;
 
     function run() external {
-        uint256 pk        = vm.envUint("PRIVATE_KEY");
-        uint256 mintAmt   = vm.envUint("INITIAL_USDC_MINT");
-        address deployer  = vm.addr(pk);
+        uint256 pk = vm.envUint("PRIVATE_KEY");
+        uint256 mintAmt = vm.envUint("INITIAL_USDC_MINT");
+        address deployer = vm.addr(pk);
 
         vm.startBroadcast(pk);
         MockERC20 usdc = new MockERC20("Demo USD Coin", "dUSDC", 6);

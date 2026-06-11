@@ -1,13 +1,13 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.26;
 
-import {IPoolManager}    from "v4-core/interfaces/IPoolManager.sol";
+import {IPoolManager} from "v4-core/interfaces/IPoolManager.sol";
 import {IUnlockCallback} from "v4-core/interfaces/callback/IUnlockCallback.sol";
-import {PoolKey}         from "v4-core/types/PoolKey.sol";
-import {BalanceDelta}    from "v4-core/types/BalanceDelta.sol";
-import {SwapParams}      from "v4-core/types/PoolOperation.sol";
-import {Currency}        from "v4-core/types/Currency.sol";
-import {IERC20Minimal}   from "v4-core/interfaces/external/IERC20Minimal.sol";
+import {PoolKey} from "v4-core/types/PoolKey.sol";
+import {BalanceDelta} from "v4-core/types/BalanceDelta.sol";
+import {SwapParams} from "v4-core/types/PoolOperation.sol";
+import {Currency} from "v4-core/types/Currency.sol";
+import {IERC20Minimal} from "v4-core/interfaces/external/IERC20Minimal.sol";
 
 /// @notice Minimal swap router for demo/testnet use.
 ///         Caller must approve this contract to spend the input token before calling swap().
@@ -15,10 +15,10 @@ contract SwapHelper is IUnlockCallback {
     IPoolManager public immutable poolManager;
 
     struct CallbackData {
-        PoolKey    key;
+        PoolKey key;
         SwapParams params;
-        address    payer;
-        address    recipient;
+        address payer;
+        address recipient;
     }
 
     constructor(IPoolManager _poolManager) {
@@ -28,11 +28,10 @@ contract SwapHelper is IUnlockCallback {
     /// @param key        The Uniswap v4 pool key (must have TridentHook attached)
     /// @param params     zeroForOne, amountSpecified (negative = exactIn), sqrtPriceLimitX96
     /// @param recipient  Who receives the output tokens
-    function swap(
-        PoolKey    calldata key,
-        SwapParams calldata params,
-        address             recipient
-    ) external returns (BalanceDelta delta) {
+    function swap(PoolKey calldata key, SwapParams calldata params, address recipient)
+        external
+        returns (BalanceDelta delta)
+    {
         delta = abi.decode(
             poolManager.unlock(
                 abi.encode(CallbackData({key: key, params: params, payer: msg.sender, recipient: recipient}))
@@ -51,8 +50,8 @@ contract SwapHelper is IUnlockCallback {
         int256 delta1 = delta.amount1();
 
         // negative delta => caller owes pool => settle (pay in)
-        if (delta0 < 0) _settle(d.key.currency0, d.payer,     uint256(-delta0));
-        if (delta1 < 0) _settle(d.key.currency1, d.payer,     uint256(-delta1));
+        if (delta0 < 0) _settle(d.key.currency0, d.payer, uint256(-delta0));
+        if (delta1 < 0) _settle(d.key.currency1, d.payer, uint256(-delta1));
         // positive delta => pool owes caller => take (receive)
         if (delta0 > 0) _take(d.key.currency0, d.recipient, uint256(delta0));
         if (delta1 > 0) _take(d.key.currency1, d.recipient, uint256(delta1));

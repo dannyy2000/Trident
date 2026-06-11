@@ -269,8 +269,8 @@ contract TridentHook is IHooks, ITridentHook, IReactiveCallback {
         uint256 gammaScore = primedGammaScore;
         if (gammaScore == 0 && primedBoundaryTick != 0) {
             // Fallback: compute gamma from live tick vs primed boundary
-            try _gammaScorer.computeGammaScore(currentTick, primedBoundaryTick, key.tickSpacing)
-                returns (uint256 score) {
+            try _gammaScorer.computeGammaScore(currentTick, primedBoundaryTick, key.tickSpacing) returns (uint256 score)
+            {
                 gammaScore = score;
             } catch {}
         }
@@ -295,13 +295,12 @@ contract TridentHook is IHooks, ITridentHook, IReactiveCallback {
 
     /// @notice Estimates the vault capture from this swap and accrues it to _pendingCapture.
     ///         Actual ERC-20 transfer to vault happens in flushToVault().
-    function afterSwap(
-        address,
-        PoolKey calldata key,
-        SwapParams calldata params,
-        BalanceDelta delta,
-        bytes calldata
-    ) external override onlyPoolManager returns (bytes4, int128) {
+    function afterSwap(address, PoolKey calldata key, SwapParams calldata params, BalanceDelta delta, bytes calldata)
+        external
+        override
+        onlyPoolManager
+        returns (bytes4, int128)
+    {
         bytes32 poolId = PoolId.unwrap(key.toId());
         uint24 fee = _lastFee[poolId];
 
@@ -335,8 +334,7 @@ contract TridentHook is IHooks, ITridentHook, IReactiveCallback {
         bytes calldata
     ) external override onlyPoolManager returns (bytes4, BalanceDelta) {
         if (params.liquidityDelta > 0) {
-            bytes32 positionId =
-                _derivePositionId(sender, params.tickLower, params.tickUpper, params.salt);
+            bytes32 positionId = _derivePositionId(sender, params.tickLower, params.tickUpper, params.salt);
 
             // Get current tick from PoolManager slot0
             (, int24 currentTick,,) = poolManager.getSlot0(key.toId());
@@ -344,9 +342,7 @@ contract TridentHook is IHooks, ITridentHook, IReactiveCallback {
             uint128 liquidity = uint128(uint256(params.liquidityDelta));
 
             _vault.recordPosition(positionId, sender, currentTick, liquidity);
-            _positionTracker.recordEntry(
-                positionId, sender, params.tickLower, params.tickUpper, currentTick, liquidity
-            );
+            _positionTracker.recordEntry(positionId, sender, params.tickLower, params.tickUpper, currentTick, liquidity);
         }
 
         return (IHooks.afterAddLiquidity.selector, toBalanceDelta(0, 0));
@@ -428,10 +424,7 @@ contract TridentHook is IHooks, ITridentHook, IReactiveCallback {
     // -------------------------------------------------------------------------
 
     /// @inheritdoc IReactiveCallback
-    function primeBoundaryFee(int24 nearestBoundaryTick, uint256 primedGammaScore_)
-        external
-        override
-    {
+    function primeBoundaryFee(int24 nearestBoundaryTick, uint256 primedGammaScore_) external override {
         if (msg.sender != _reactiveContract) revert OnlyReactiveContract();
         primedBoundaryTick = nearestBoundaryTick;
         primedGammaScore = primedGammaScore_;

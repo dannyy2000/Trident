@@ -55,32 +55,32 @@ contract DeployReactive is Script {
 
         // ── Unichain Sepolia addresses (from Deploy.s.sol output) ─────────────
         address reactiveAdapter = vm.envAddress("REACTIVE_ADAPTER_ADDRESS");
-        address poolManager     = vm.envAddress("POOL_MANAGER");
-        address chainlinkFeed   = vm.envAddress("CHAINLINK_FEED");
-        address token0          = vm.envAddress("TOKEN0");
-        address token1          = vm.envAddress("TOKEN1");
-        address hookAddr        = vm.envAddress("TRIDENT_HOOK_ADDRESS");
+        address poolManager = vm.envAddress("POOL_MANAGER");
+        address chainlinkFeed = vm.envAddress("CHAINLINK_FEED");
+        address token0 = vm.envAddress("TOKEN0");
+        address token1 = vm.envAddress("TOKEN1");
+        address hookAddr = vm.envAddress("TRIDENT_HOOK_ADDRESS");
 
         // ── Pool parameters ───────────────────────────────────────────────────
-        uint256 destChainId   = vm.envUint("DEST_CHAIN_ID");          // Unichain Sepolia: 1301
-        int24   tickSpacing   = int24(int256(vm.envUint("TICK_SPACING"))); // e.g. 60
+        uint256 destChainId = vm.envUint("DEST_CHAIN_ID"); // Unichain Sepolia: 1301
+        int24 tickSpacing = int24(int256(vm.envUint("TICK_SPACING"))); // e.g. 60
 
         // sqrtOracleDivisor = sqrt(10^(chainlinkDecimals + token0Decimals - token1Decimals))
         // For ETH/USD feed (8 dec) with WETH(18)/USDC(6): sqrt(10^(8+18-6)) = sqrt(10^20) = 1e10
         uint256 sqrtOracleDivisor = vm.envUint("SQRT_ORACLE_DIVISOR");
 
-        uint256 initialOraclePrice = vm.envUint("INITIAL_ORACLE_PRICE");       // e.g. 2000_0000_0000 (Chainlink 8-dec)
+        uint256 initialOraclePrice = vm.envUint("INITIAL_ORACLE_PRICE"); // e.g. 2000_0000_0000 (Chainlink 8-dec)
 
         // ── Compute PoolId (must match the pool initialised by InitPool.s.sol) ─
         // Sort tokens — v4 requires currency0 < currency1 by address
         (address t0, address t1) = token0 < token1 ? (token0, token1) : (token1, token0);
 
         PoolKey memory poolKey = PoolKey({
-            currency0:   Currency.wrap(t0),
-            currency1:   Currency.wrap(t1),
-            fee:         LPFeeLibrary.DYNAMIC_FEE_FLAG,
+            currency0: Currency.wrap(t0),
+            currency1: Currency.wrap(t1),
+            fee: LPFeeLibrary.DYNAMIC_FEE_FLAG,
             tickSpacing: tickSpacing,
-            hooks:       IHooks(hookAddr)
+            hooks: IHooks(hookAddr)
         });
         bytes32 poolId = PoolId.unwrap(poolKey.toId());
 

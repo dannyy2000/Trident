@@ -1,13 +1,13 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.26;
 
-import {IPoolManager}         from "v4-core/interfaces/IPoolManager.sol";
-import {IUnlockCallback}      from "v4-core/interfaces/callback/IUnlockCallback.sol";
-import {PoolKey}               from "v4-core/types/PoolKey.sol";
-import {BalanceDelta}          from "v4-core/types/BalanceDelta.sol";
+import {IPoolManager} from "v4-core/interfaces/IPoolManager.sol";
+import {IUnlockCallback} from "v4-core/interfaces/callback/IUnlockCallback.sol";
+import {PoolKey} from "v4-core/types/PoolKey.sol";
+import {BalanceDelta} from "v4-core/types/BalanceDelta.sol";
 import {ModifyLiquidityParams} from "v4-core/types/PoolOperation.sol";
-import {Currency}              from "v4-core/types/Currency.sol";
-import {IERC20Minimal}         from "v4-core/interfaces/external/IERC20Minimal.sol";
+import {Currency} from "v4-core/types/Currency.sol";
+import {IERC20Minimal} from "v4-core/interfaces/external/IERC20Minimal.sol";
 
 /// @notice Minimal add/remove liquidity router for demo/testnet use.
 ///         For addLiquidity, caller must approve this contract to spend both tokens.
@@ -15,9 +15,9 @@ contract LiquidityHelper is IUnlockCallback {
     IPoolManager public immutable poolManager;
 
     struct CallbackData {
-        PoolKey               key;
+        PoolKey key;
         ModifyLiquidityParams params;
-        address               sender;
+        address sender;
     }
 
     constructor(IPoolManager _poolManager) {
@@ -27,22 +27,26 @@ contract LiquidityHelper is IUnlockCallback {
     /// @param liquidityDelta  Positive to add, negative to remove (Uniswap v4 liquidity units)
     function modifyLiquidity(
         PoolKey calldata key,
-        int256           liquidityDelta,
-        int24            tickLower,
-        int24            tickUpper,
-        bytes32          salt
+        int256 liquidityDelta,
+        int24 tickLower,
+        int24 tickUpper,
+        bytes32 salt
     ) external returns (BalanceDelta delta) {
         delta = abi.decode(
-            poolManager.unlock(abi.encode(CallbackData({
-                key:    key,
-                params: ModifyLiquidityParams({
-                    tickLower:      tickLower,
-                    tickUpper:      tickUpper,
-                    liquidityDelta: liquidityDelta,
-                    salt:           salt
-                }),
-                sender: msg.sender
-            }))),
+            poolManager.unlock(
+                abi.encode(
+                    CallbackData({
+                        key: key,
+                        params: ModifyLiquidityParams({
+                            tickLower: tickLower,
+                            tickUpper: tickUpper,
+                            liquidityDelta: liquidityDelta,
+                            salt: salt
+                        }),
+                        sender: msg.sender
+                    })
+                )
+            ),
             (BalanceDelta)
         );
         // On removal the vault IL payout lands here (hook uses this contract as recipient).

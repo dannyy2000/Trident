@@ -58,9 +58,9 @@ interface ITridentHookAdmin {
 ///   on Ethereum Sepolia. You receive 100 REACT per SepETH at your address on Lasna.
 contract WireReactive is Script {
     function run() external {
-        uint256 deployerKey   = vm.envUint("PRIVATE_KEY");
-        address adapterAddr   = vm.envAddress("REACTIVE_ADAPTER_ADDRESS");
-        address hookAddr      = vm.envAddress("TRIDENT_HOOK_ADDRESS");
+        uint256 deployerKey = vm.envUint("PRIVATE_KEY");
+        address adapterAddr = vm.envAddress("REACTIVE_ADAPTER_ADDRESS");
+        address hookAddr = vm.envAddress("TRIDENT_HOOK_ADDRESS");
         address callbackProxy = vm.envAddress("CALLBACK_PROXY_ADDRESS");
 
         address deployer = vm.addr(deployerKey);

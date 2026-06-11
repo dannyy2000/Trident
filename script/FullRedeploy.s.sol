@@ -1,28 +1,28 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.26;
 
-import {Script, console2}    from "forge-std/Script.sol";
-import {Hooks}                from "v4-core/libraries/Hooks.sol";
-import {IPoolManager}         from "v4-core/interfaces/IPoolManager.sol";
-import {LPFeeLibrary}         from "v4-core/libraries/LPFeeLibrary.sol";
-import {PoolKey}              from "v4-core/types/PoolKey.sol";
+import {Script, console2} from "forge-std/Script.sol";
+import {Hooks} from "v4-core/libraries/Hooks.sol";
+import {IPoolManager} from "v4-core/interfaces/IPoolManager.sol";
+import {LPFeeLibrary} from "v4-core/libraries/LPFeeLibrary.sol";
+import {PoolKey} from "v4-core/types/PoolKey.sol";
 import {PoolId, PoolIdLibrary} from "v4-core/types/PoolId.sol";
-import {IHooks}               from "v4-core/interfaces/IHooks.sol";
-import {Currency}             from "v4-core/types/Currency.sol";
+import {IHooks} from "v4-core/interfaces/IHooks.sol";
+import {Currency} from "v4-core/types/Currency.sol";
 
-import {TridentHook}     from "../src/TridentHook.sol";
-import {ILReserveVault}  from "../src/ILReserveVault.sol";
-import {OracleReader}    from "../src/OracleReader.sol";
-import {GammaScorer}     from "../src/GammaScorer.sol";
+import {TridentHook} from "../src/TridentHook.sol";
+import {ILReserveVault} from "../src/ILReserveVault.sol";
+import {OracleReader} from "../src/OracleReader.sol";
+import {GammaScorer} from "../src/GammaScorer.sol";
 import {PositionTracker} from "../src/PositionTracker.sol";
 import {ReactiveAdapter} from "../src/ReactiveAdapter.sol";
 import {IILReserveVault} from "../src/interfaces/IILReserveVault.sol";
-import {IOracleReader}   from "../src/interfaces/IOracleReader.sol";
+import {IOracleReader} from "../src/interfaces/IOracleReader.sol";
 
 import {MockChainlinkFeed} from "../src/demo/MockChainlinkFeed.sol";
-import {MockERC20}         from "../src/demo/MockERC20.sol";
-import {SwapHelper}        from "../src/demo/SwapHelper.sol";
-import {LiquidityHelper}   from "../src/demo/LiquidityHelper.sol";
+import {MockERC20} from "../src/demo/MockERC20.sol";
+import {SwapHelper} from "../src/demo/SwapHelper.sol";
+import {LiquidityHelper} from "../src/demo/LiquidityHelper.sol";
 
 /// @title FullRedeploy
 /// @notice Single-command full redeploy of the entire Trident system.
@@ -44,17 +44,14 @@ contract FullRedeploy is Script {
     address constant POOL_MANAGER = 0x00B036B58a818B1BC34d502D3fE730Db729e62AC;
 
     // Hook CREATE2 permission flags (must match TridentHook.getHookPermissions)
-    uint160 constant HOOK_FLAGS =
-        Hooks.BEFORE_SWAP_FLAG |
-        Hooks.AFTER_SWAP_FLAG |
-        Hooks.AFTER_ADD_LIQUIDITY_FLAG |
-        Hooks.BEFORE_REMOVE_LIQUIDITY_FLAG;
+    uint160 constant HOOK_FLAGS = Hooks.BEFORE_SWAP_FLAG | Hooks.AFTER_SWAP_FLAG | Hooks.AFTER_ADD_LIQUIDITY_FLAG
+        | Hooks.BEFORE_REMOVE_LIQUIDITY_FLAG;
 
     uint256 constant MINE_LIMIT = 500_000;
 
     // Pool parameters
-    int24   constant TICK_SPACING = 60;
-    uint24  constant BASE_FEE     = 3_000; // 0.30%
+    int24 constant TICK_SPACING = 60;
+    uint24 constant BASE_FEE = 3_000; // 0.30%
 
     // Correct sqrtPriceX96 for mWETH(18dec)/mUSDC(6dec) at ~$3000
     // = sqrt(3000 * 1e6 / 1e18) * 2^96
@@ -64,22 +61,22 @@ contract FullRedeploy is Script {
     uint256 constant DECIMAL_ADJUSTMENT = 1_000_000_000_000_000_000_000_000_000_000;
 
     // Mock Chainlink feed: $3000 with 8 decimals
-    int256  constant INITIAL_ORACLE_PRICE = 300_000_000_000; // $3000 * 1e8
-    uint8   constant FEED_DECIMALS        = 8;
+    int256 constant INITIAL_ORACLE_PRICE = 300_000_000_000; // $3000 * 1e8
+    uint8 constant FEED_DECIMALS = 8;
 
     // Staleness + manipulation thresholds
-    uint256 constant STALENESS_THRESHOLD       = 3_600;
-    uint256 constant MANIPULATION_THRESHOLD    = 200;
+    uint256 constant STALENESS_THRESHOLD = 3_600;
+    uint256 constant MANIPULATION_THRESHOLD = 200;
 
     // Reactive origin placeholder — replace with real Kopli address if wiring reactive
     address constant REACTIVE_ORIGIN = address(1);
 
     // Mint amounts for deployer
-    uint256 constant WETH_MINT = 100 ether;              // 100 mWETH
-    uint256 constant USDC_MINT = 300_000 * 1e6;          // 300,000 mUSDC
+    uint256 constant WETH_MINT = 100 ether; // 100 mWETH
+    uint256 constant USDC_MINT = 300_000 * 1e6; // 300,000 mUSDC
 
     function run() external {
-        uint256 pk       = vm.envUint("PRIVATE_KEY");
+        uint256 pk = vm.envUint("PRIVATE_KEY");
         address deployer = vm.addr(pk);
 
         // ── Pre-compute nonce-based addresses ─────────────────────────────────
@@ -102,16 +99,15 @@ contract FullRedeploy is Script {
         uint256 nonce = vm.getNonce(deployer);
 
         address oracleReaderAddr = vm.computeCreateAddress(deployer, nonce + 7);
-        address gammaScorerAddr  = vm.computeCreateAddress(deployer, nonce + 8);
-        address vaultAddr        = vm.computeCreateAddress(deployer, nonce + 9);
-        address trackerAddr      = vm.computeCreateAddress(deployer, nonce + 10);
-        address adapterAddr      = vm.computeCreateAddress(deployer, nonce + 12);
+        address gammaScorerAddr = vm.computeCreateAddress(deployer, nonce + 8);
+        address vaultAddr = vm.computeCreateAddress(deployer, nonce + 9);
+        address trackerAddr = vm.computeCreateAddress(deployer, nonce + 10);
+        address adapterAddr = vm.computeCreateAddress(deployer, nonce + 12);
 
         // Mine hook salt before broadcasting
         console2.log("Mining hook address...");
-        (address hookAddr, bytes32 hookSalt) = _mineHookSalt(
-            oracleReaderAddr, gammaScorerAddr, vaultAddr, trackerAddr, adapterAddr, deployer
-        );
+        (address hookAddr, bytes32 hookSalt) =
+            _mineHookSalt(oracleReaderAddr, gammaScorerAddr, vaultAddr, trackerAddr, adapterAddr, deployer);
         console2.log("Hook address:", hookAddr);
 
         vm.startBroadcast(pk);
@@ -144,9 +140,8 @@ contract FullRedeploy is Script {
         require(address(gammaScorer) == gammaScorerAddr, "GammaScorer addr mismatch");
 
         // Determine token sort order (v4 requires currency0 < currency1)
-        (address token0, address token1) = address(weth) < address(usdc)
-            ? (address(weth), address(usdc))
-            : (address(usdc), address(weth));
+        (address token0, address token1) =
+            address(weth) < address(usdc) ? (address(weth), address(usdc)) : (address(usdc), address(weth));
 
         address payoutToken = token0; // vault pays in token0
 
@@ -178,11 +173,11 @@ contract FullRedeploy is Script {
 
         // ── Initialise pool ───────────────────────────────────────────────────
         PoolKey memory poolKey = PoolKey({
-            currency0:   Currency.wrap(token0),
-            currency1:   Currency.wrap(token1),
-            fee:         LPFeeLibrary.DYNAMIC_FEE_FLAG,
+            currency0: Currency.wrap(token0),
+            currency1: Currency.wrap(token1),
+            fee: LPFeeLibrary.DYNAMIC_FEE_FLAG,
             tickSpacing: TICK_SPACING,
-            hooks:       IHooks(hookAddr)
+            hooks: IHooks(hookAddr)
         });
 
         IPoolManager(POOL_MANAGER).initialize(poolKey, INIT_SQRT_PRICE);

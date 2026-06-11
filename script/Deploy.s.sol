@@ -49,11 +49,8 @@ contract Deploy is Script {
     using PoolIdLibrary for PoolKey;
 
     // ── Hook permission flags — must match TridentHook.getHookPermissions() ──
-    uint160 constant HOOK_FLAGS =
-        Hooks.BEFORE_SWAP_FLAG |
-        Hooks.AFTER_SWAP_FLAG |
-        Hooks.AFTER_ADD_LIQUIDITY_FLAG |
-        Hooks.BEFORE_REMOVE_LIQUIDITY_FLAG;
+    uint160 constant HOOK_FLAGS = Hooks.BEFORE_SWAP_FLAG | Hooks.AFTER_SWAP_FLAG | Hooks.AFTER_ADD_LIQUIDITY_FLAG
+        | Hooks.BEFORE_REMOVE_LIQUIDITY_FLAG;
 
     // Maximum salt iterations for hook address mining (expected: ~16_384 on average)
     uint256 constant MINE_LIMIT = 500_000;
@@ -65,14 +62,14 @@ contract Deploy is Script {
     function run() external {
         // ── Load env ─────────────────────────────────────────────────────────
         uint256 deployerKey = vm.envUint("PRIVATE_KEY");
-        address deployer    = vm.addr(deployerKey);
+        address deployer = vm.addr(deployerKey);
 
-        address poolManager       = vm.envAddress("POOL_MANAGER");
-        address chainlinkFeed     = vm.envAddress("CHAINLINK_FEED");
-        address payoutToken       = vm.envAddress("PAYOUT_TOKEN");
-        address reactiveOrigin    = vm.envAddress("REACTIVE_ORIGIN_ADDRESS");
+        address poolManager = vm.envAddress("POOL_MANAGER");
+        address chainlinkFeed = vm.envAddress("CHAINLINK_FEED");
+        address payoutToken = vm.envAddress("PAYOUT_TOKEN");
+        address reactiveOrigin = vm.envAddress("REACTIVE_ORIGIN_ADDRESS");
         uint256 decimalAdjustment = vm.envUint("DECIMAL_ADJUSTMENT");
-        uint24  baseFee           = uint24(vm.envUint("BASE_FEE_BPS"));
+        uint24 baseFee = uint24(vm.envUint("BASE_FEE_BPS"));
 
         console2.log("Deployer:     ", deployer);
         console2.log("Pool manager: ", poolManager);
@@ -84,11 +81,11 @@ contract Deploy is Script {
         uint256 nonce = vm.getNonce(deployer);
 
         address oracleReaderAddr = vm.computeCreateAddress(deployer, nonce);
-        address gammaScorerAddr  = vm.computeCreateAddress(deployer, nonce + 1);
-        address vaultAddr        = vm.computeCreateAddress(deployer, nonce + 2);
-        address trackerAddr      = vm.computeCreateAddress(deployer, nonce + 3);
+        address gammaScorerAddr = vm.computeCreateAddress(deployer, nonce + 1);
+        address vaultAddr = vm.computeCreateAddress(deployer, nonce + 2);
+        address trackerAddr = vm.computeCreateAddress(deployer, nonce + 3);
         // nonce + 4 is consumed by the hook's CREATE2 tx (nonce still increments)
-        address adapterAddr      = vm.computeCreateAddress(deployer, nonce + 5);
+        address adapterAddr = vm.computeCreateAddress(deployer, nonce + 5);
 
         console2.log("\n-- Pre-computed addresses --");
         console2.log("OracleReader (expected):    ", oracleReaderAddr);
@@ -143,8 +140,8 @@ contract Deploy is Script {
             PositionTracker(trackerAddr),
             baseFee,
             decimalAdjustment,
-            adapterAddr,    // _reactiveContract_ — adapter will be deployed at N+5
-            deployer        // owner
+            adapterAddr, // _reactiveContract_ — adapter will be deployed at N+5
+            deployer // owner
         );
         require(address(hook) == hookAddr, "Deploy: Hook address mismatch - re-run mining");
 
@@ -178,7 +175,7 @@ contract Deploy is Script {
         address gammaScorer_,
         address vault_,
         address tracker_,
-        uint24  baseFee_,
+        uint24 baseFee_,
         uint256 decimalAdj_,
         address adapter_,
         address owner_

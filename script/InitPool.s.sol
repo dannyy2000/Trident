@@ -22,12 +22,12 @@ contract InitPool is Script {
     using PoolIdLibrary for PoolKey;
 
     function run() external {
-        uint256 deployerKey  = vm.envUint("PRIVATE_KEY");
-        address poolManager  = vm.envAddress("POOL_MANAGER");
-        address hookAddr     = vm.envAddress("TRIDENT_HOOK_ADDRESS");
-        address token0       = vm.envAddress("TOKEN0");
-        address token1       = vm.envAddress("TOKEN1");
-        int24   tickSpacing  = int24(int256(vm.envUint("TICK_SPACING")));
+        uint256 deployerKey = vm.envUint("PRIVATE_KEY");
+        address poolManager = vm.envAddress("POOL_MANAGER");
+        address hookAddr = vm.envAddress("TRIDENT_HOOK_ADDRESS");
+        address token0 = vm.envAddress("TOKEN0");
+        address token1 = vm.envAddress("TOKEN1");
+        int24 tickSpacing = int24(int256(vm.envUint("TICK_SPACING")));
 
         // Initial sqrtPriceX96 — represents the starting price of the pool.
         // For a 1:1 pool (testing): 79228162514264337593543950336
@@ -38,11 +38,11 @@ contract InitPool is Script {
         (address t0, address t1) = token0 < token1 ? (token0, token1) : (token1, token0);
 
         PoolKey memory poolKey = PoolKey({
-            currency0:   Currency.wrap(t0),
-            currency1:   Currency.wrap(t1),
-            fee:         LPFeeLibrary.DYNAMIC_FEE_FLAG,
+            currency0: Currency.wrap(t0),
+            currency1: Currency.wrap(t1),
+            fee: LPFeeLibrary.DYNAMIC_FEE_FLAG,
             tickSpacing: tickSpacing,
-            hooks:       IHooks(hookAddr)
+            hooks: IHooks(hookAddr)
         });
 
         bytes32 poolId = PoolId.unwrap(poolKey.toId());

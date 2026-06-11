@@ -41,8 +41,8 @@ interface IReactiveAdapter {
 ///     --private-key $PRIVATE_KEY
 /// (you receive 50 REACT at your address on Lasna)
 contract FixReactiveWiring is Script {
-    address constant REACTIVE_ADAPTER  = 0x7DAd5E3b0A4AfA91414b30AdBf64E33954278b0c;
-    address constant CALLBACK_PROXY    = 0x9299472A6399Fd1027ebF067571Eb3e3D7837FC4;
+    address constant REACTIVE_ADAPTER = 0x7DAd5E3b0A4AfA91414b30AdBf64E33954278b0c;
+    address constant CALLBACK_PROXY = 0x9299472A6399Fd1027ebF067571Eb3e3D7837FC4;
 
     function run() external {
         uint256 deployerKey = vm.envUint("PRIVATE_KEY");
