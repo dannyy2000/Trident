@@ -43,8 +43,8 @@ contract ILReserveVault is IILReserveVault, ReentrancyGuard {
     /// @notice Maximum fraction of vault any single settlement can claim (10%)
     uint256 public constant MAX_SINGLE_CLAIM_PCT = 0.1e18;
 
-    /// @notice Block duration for full loyalty (≈30 days at 12 s/block on mainnet)
-    uint256 public constant LOYALTY_TARGET_BLOCKS = 216_000;
+    /// @notice Block duration for full loyalty (mainnet: 216_000 ≈ 30 days; testnet: 200 ≈ 3 min)
+    uint256 public constant LOYALTY_TARGET_BLOCKS = 200;
 
     /// @notice Absolute ceiling on capture rate — Reactive can never push above 30%
     uint256 public constant MAX_CAPTURE_RATE_BPS = 3_000;

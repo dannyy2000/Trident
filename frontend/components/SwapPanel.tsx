@@ -2,7 +2,7 @@
 
 import { useState } from 'react'
 import {
-  useConnection, useReadContract, useWriteContract, useWaitForTransactionReceipt,
+  useAccount, useReadContract, useWriteContract, useWaitForTransactionReceipt,
 } from 'wagmi'
 import { CONTRACTS, POOL_KEY, DYNAMIC_FEE_FLAG } from '@/lib/contracts'
 import { SWAP_HELPER_ABI, ERC20_ABI, TRIDENT_HOOK_ABI } from '@/lib/abis'
@@ -21,7 +21,7 @@ const POOL_KEY_TUPLE = {
 } as const
 
 export function SwapPanel() {
-  const { address, isConnected } = useConnection()
+  const { address, isConnected } = useAccount()
   const [zeroForOne, setZeroForOne] = useState(true)
   const [amountIn,   setAmountIn]   = useState('')
   const [isApproving, setIsApproving] = useState(false)

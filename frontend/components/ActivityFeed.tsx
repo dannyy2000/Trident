@@ -36,16 +36,23 @@ export function ActivityFeed() {
               className="bg-gray-800/40 rounded-lg p-3 flex flex-col gap-1.5 hover:bg-gray-800 transition-colors"
             >
               <div className="flex items-center justify-between">
-                <div className="flex items-center gap-2 flex-wrap">
+                <div className="flex items-center gap-1.5 flex-wrap">
+                  <span className="text-xs text-gray-600">base</span>
                   <FeeTag value={e.baseFee}           color="bg-gray-700 text-gray-300" />
                   {e.arbPremiumBps > 0 && (
-                    <FeeTag value={e.arbPremiumBps}   color="bg-amber-900/60 text-amber-300" />
+                    <>
+                      <span className="text-xs text-amber-700">+ arb</span>
+                      <FeeTag value={e.arbPremiumBps}   color="bg-amber-900/60 text-amber-300" />
+                    </>
                   )}
                   {e.boundaryPremiumBps > 0 && (
-                    <FeeTag value={e.boundaryPremiumBps} color="bg-purple-900/60 text-purple-300" />
+                    <>
+                      <span className="text-xs text-purple-700">+ boundary</span>
+                      <FeeTag value={e.boundaryPremiumBps} color="bg-purple-900/60 text-purple-300" />
+                    </>
                   )}
-                  <span className="text-gray-600 text-xs">→</span>
-                  <FeeTag value={e.totalFee}          color="bg-indigo-900/60 text-indigo-300" />
+                  <span className="text-gray-600 text-xs">=</span>
+                  <FeeTag value={e.totalFee}          color="bg-indigo-900/60 text-indigo-300 font-bold" />
                 </div>
                 <span className="text-xs text-gray-600 font-mono">
                   #{e.blockNumber.toString()}
@@ -73,10 +80,8 @@ export function ActivityFeed() {
       )}
 
       <p className="text-xs text-gray-700">
-        Color key: <span className="text-gray-400">base</span> ·{' '}
-        <span className="text-amber-600">arb premium</span> ·{' '}
-        <span className="text-purple-600">boundary premium</span> ·{' '}
-        <span className="text-indigo-400">total</span>
+        Arb premium = oracle divergence fee charged to arb bots (Layer 1) ·{' '}
+        Boundary = gamma score near LP range edge (Layer 2)
       </p>
     </div>
   )

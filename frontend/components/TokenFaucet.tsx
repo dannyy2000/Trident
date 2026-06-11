@@ -1,6 +1,6 @@
 'use client'
 
-import { useConnection, useReadContracts, useWriteContract, useWaitForTransactionReceipt } from 'wagmi'
+import { useAccount, useReadContracts, useWriteContract, useWaitForTransactionReceipt } from 'wagmi'
 import { useState } from 'react'
 import { POOL_KEY } from '@/lib/contracts'
 import { MOCK_ERC20_ABI, ERC20_ABI } from '@/lib/abis'
@@ -9,7 +9,7 @@ const WETH_MINT = 10n * 10n ** 18n       // 10 mWETH
 const USDC_MINT = 30000n * 10n ** 6n     // 30,000 mUSDC
 
 export function TokenFaucet() {
-  const { address, isConnected } = useConnection()
+  const { address, isConnected } = useAccount()
   const [txHash, setTxHash] = useState<`0x${string}` | undefined>()
   const [minting, setMinting] = useState<'weth' | 'usdc' | null>(null)
 

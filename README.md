@@ -663,22 +663,36 @@ FOUNDRY_PROFILE=ci forge test
 
 ### Deployed Contracts — Unichain Sepolia (Chain ID 1301)
 
+> **Current deployment** — redeployed via `FullRedeploy.s.sol`. All addresses below are live.
+
 | Contract | Address |
 |---|---|
-| TridentHook | `0x1370d2f1244050A152F8a8A0922072bb54eBc6C0` |
-| ILReserveVault | `0x6aD065F00ABa43f79920d229EDEe5DABCDd3cfFD` |
-| PositionTracker | `0xf4a12663ED511ba7855aedfA842656E062A51305` |
-| OracleReader | `0xC674eeC4bfc8170EA28B71E7c97333Bd6f29265e` |
-| ReactiveAdapter | `0x8E511863Cd5092ca7aF19b35611AA80bF06b7322` |
-| MockChainlinkFeed | `0xc34AD85bD0a4385b1d727b351108881e8C34628e` |
-| MockWETH (token0) | `0x09727dCebbdfC13BCaf2C03ACFc91AB14B27886b` |
-| MockUSDC (token1) | `0x1BE9b1b76eD8d0d40DB33dCafDBCE0448e4FF200` |
-| SwapHelper | `0xB474f2156921990249741de88a7d7Db5bA6d38Ad` |
-| LiquidityHelper | `0x23b2D9D1CFe4F95B9f6C79EB99867Dc43613b7F1` |
+| TridentHook | `0x87Bb5917BA1fa7f4EFD08903a5D305971B4146C0` |
+| ILReserveVault | `0x07b2E842731a16Efc6F3d39bfA468f47b911Bc7f` |
+| PositionTracker | `0xe4A49b9Bf9d46aa866397b2a0193DAb2D5D1f424` |
+| OracleReader | `0x7de2ceB1316Cc7d9e12668E1771Be88de860FD01` |
+| ReactiveAdapter | `0x7DAd5E3b0A4AfA91414b30AdBf64E33954278b0c` |
+| MockChainlinkFeed | `0x467A074ADE6B5D828cd57EB2CeC76Cc396ca6Db6` |
+| MockWETH / mWETH (token0, 18 dec) | `0x8a777593e7aD6Df9e4b7E104cF3e2B8eF82d0057` |
+| MockUSDC / mUSDC (token1, 6 dec) | `0xff455ad480806CdC260B7073BAfDa9a191c0ff92` |
+| SwapHelper | `0xa2E9fAF8C2045A5e10842006d064410a6C4aC076` |
+| LiquidityHelper | `0x2F87C8ACBBB399bF77f6a0131284F2a6BC70E78d` |
 | PoolManager | `0x00B036B58a818B1BC34d502D3fE730Db729e62AC` |
 
-Pool ID: `0x198c039d15a9e83af81d10cc37c7962537d26cf4ea137c0c8ad4724d7cc0d077`
+Pool ID: `0x5e1589e36bf91d1b848851741701815f43d2b750dd64b05135b771f340b1d4e6`
 Initial pool price: $3,000 (sqrtPriceX96 = 4339505179874779662909440)
+Tick range (default): tickLower = -196980, tickUpper = -195600
+
+### Deployed Contracts — Reactive Network Lasna Testnet (Chain ID 5318007)
+
+| Contract | Address |
+|---|---|
+| TridentReactive | `0x693eE35A0c3D04b65D58AC075A18941dc212c90b` |
+
+RPC: `https://lasna-rpc.rnk.dev/`
+Deploy tx: `0x99034e1588dcc1ecbf54dd767b2a6a122051840ddec80602338d1e742a297dd5`
+Subscribed to: Swap + ModifyLiquidity (PoolManager) + AnswerUpdated (MockChainlinkFeed) on chain 1301 ✓
+Callback proxy (`reactiveOrigin` in ReactiveAdapter): `0x9299472A6399Fd1027ebF067571Eb3e3D7837FC4` ✓
 
 ### Deploy Scripts
 
@@ -695,8 +709,25 @@ forge script script/DeployDemo.s.sol --rpc-url https://sepolia.unichain.org --br
 # 4. Initialize the pool at $3000
 forge script script/InitPool.s.sol --rpc-url https://sepolia.unichain.org --broadcast
 
-# 5. (Optional) Deploy Reactive contract to Reactive Network
-forge script script/DeployReactive.s.sol --rpc-url https://kopli-rpc.rkt.ink --broadcast --legacy
+# 5. Deploy TridentReactive to Reactive Network (Lasna testnet)
+forge create reactive/TridentReactive.sol:TridentReactive \
+  --rpc-url https://lasna-rpc.rnk.dev/ \
+  --private-key $PRIVATE_KEY \
+  --value 0.1ether \
+  --broadcast --legacy \
+  --constructor-args 1301 $POOL_MANAGER $CHAINLINK_FEED $REACTIVE_ADAPTER \
+    $POOL_ID 60 10000000000 200 300000000000
+
+# 6. Deploy a fresh ReactiveAdapter pointing at the new TridentReactive, then wire the hook
+forge create src/ReactiveAdapter.sol:ReactiveAdapter \
+  --rpc-url https://sepolia.unichain.org \
+  --private-key $PRIVATE_KEY \
+  --broadcast \
+  --constructor-args $TRIDENT_HOOK $TRIDENT_REACTIVE
+
+cast send $TRIDENT_HOOK "setReactiveContract(address)" $NEW_ADAPTER \
+  --rpc-url https://sepolia.unichain.org \
+  --private-key $PRIVATE_KEY --legacy
 ```
 
 ---

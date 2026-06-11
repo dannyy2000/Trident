@@ -15,7 +15,7 @@ import {TridentReactive} from "../reactive/TridentReactive.sol";
 ///
 /// ─── Reactive Network setup ───────────────────────────────────────────────────
 /// Chain ID:    5318007
-/// RPC:         https://lasna-rpc.rnk.dev/
+/// RPC:         https://lasna-omni-rpc.rnk.dev/
 /// Explorer:    https://lasna-omni.reactscan.net/
 /// Faucet:      Send SepETH to 0x9b9BB25f1A81078C544C829c5EB7822d747Cf434 on Eth Sepolia
 ///              (100 REACT per 1 SepETH, max 5 SepETH per tx)
@@ -34,7 +34,7 @@ import {TridentReactive} from "../reactive/TridentReactive.sol";
 ///   DEST_CHAIN_ID=1301 TICK_SPACING=60 SQRT_ORACLE_DIVISOR=10000000000 \
 ///   MANIPULATION_THRESHOLD_BPS=200 INITIAL_ORACLE_PRICE=300000000000 \
 ///   forge script script/DeployReactive.s.sol \
-///     --rpc-url https://lasna-rpc.rnk.dev/ \
+///     --rpc-url https://lasna-omni-rpc.rnk.dev/ \
 ///     --broadcast -vvvv
 ///
 ///   # 2. Note the TridentReactive address from above output
@@ -69,7 +69,6 @@ contract DeployReactive is Script {
         // For ETH/USD feed (8 dec) with WETH(18)/USDC(6): sqrt(10^(8+18-6)) = sqrt(10^20) = 1e10
         uint256 sqrtOracleDivisor = vm.envUint("SQRT_ORACLE_DIVISOR");
 
-        uint256 manipulationBps   = vm.envUint("MANIPULATION_THRESHOLD_BPS"); // e.g. 200
         uint256 initialOraclePrice = vm.envUint("INITIAL_ORACLE_PRICE");       // e.g. 2000_0000_0000 (Chainlink 8-dec)
 
         // ── Compute PoolId (must match the pool initialised by InitPool.s.sol) ─
@@ -92,12 +91,13 @@ contract DeployReactive is Script {
         console2.log("Pool ID:             ", vm.toString(poolId));
         console2.log("Tick spacing:        ", uint256(int256(tickSpacing)));
         console2.log("sqrtOracleDivisor:   ", sqrtOracleDivisor);
-        console2.log("manipulationBps:     ", manipulationBps);
         console2.log("initialOraclePrice:  ", initialOraclePrice);
 
         vm.startBroadcast(deployerKey);
 
-        // Send 0.1 REACT with deployment — system contract deducts subscription fees from this balance
+        // Deploy with 0.1 REACT — the system contract requires funds to be present
+        // at deployment time to activate subscriptions. Constructor registers all three
+        // subscriptions inside if(!vm) so they run on Lasna but not in ReactVM.
         TridentReactive reactive = new TridentReactive{value: 0.1 ether}(
             destChainId,
             poolManager,
@@ -106,7 +106,6 @@ contract DeployReactive is Script {
             poolId,
             tickSpacing,
             sqrtOracleDivisor,
-            manipulationBps,
             initialOraclePrice
         );
 
@@ -114,10 +113,8 @@ contract DeployReactive is Script {
 
         console2.log("\n====== TridentReactive Deploy Complete ======");
         console2.log("TridentReactive: ", address(reactive));
+        console2.log("ReactiveAdapter: ", reactiveAdapter);
+        console2.log("ReactiveAdapter.reactiveOrigin must = callback proxy 0x9299472A6399Fd1027ebF067571Eb3e3D7837FC4");
         console2.log("=============================================");
-        console2.log("");
-        console2.log("IMPORTANT: if Deploy.s.sol hasn't been run yet, set:");
-        console2.log("  REACTIVE_ORIGIN_ADDRESS =", address(reactive));
-        console2.log("Then run Deploy.s.sol on Unichain Sepolia.");
     }
 }

@@ -1,6 +1,7 @@
 'use client'
 
-import { getDefaultConfig } from '@rainbow-me/rainbowkit'
+import { createConfig, http } from 'wagmi'
+import { injected } from 'wagmi/connectors'
 import { defineChain } from 'viem'
 
 export const unichainSepolia = defineChain({
@@ -16,9 +17,11 @@ export const unichainSepolia = defineChain({
   testnet: true,
 })
 
-export const wagmiConfig = getDefaultConfig({
-  appName: 'Trident — IL Protection for Uniswap v4',
-  projectId: process.env.NEXT_PUBLIC_WALLETCONNECT_PROJECT_ID ?? 'trident-dev',
+export const wagmiConfig = createConfig({
   chains: [unichainSepolia],
+  connectors: [injected()],
+  transports: {
+    [unichainSepolia.id]: http('https://sepolia.unichain.org'),
+  },
   ssr: true,
 })

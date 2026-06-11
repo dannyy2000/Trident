@@ -23,7 +23,6 @@ export function VaultHealth() {
     totalReserveBalance,
     totalLiability,
     healthRatio,
-    captureRateBps,
     tokenSymbol,
     tokenDecimals,
     healthLabel,
@@ -91,11 +90,33 @@ export function VaultHealth() {
               <span>100%+</span>
             </div>
           </div>
+
+          {/* State description */}
+          <div className={`rounded-lg border px-3 py-2 text-xs space-y-0.5 ${colors.badge}`}>
+            {healthLabel === 'healthy' && (
+              <>
+                <p className="font-semibold">Vault fully funded</p>
+                <p className="opacity-80">Reserves cover all worst-case LP claims. Capture rate is at minimum (10%) — the system is in steady state.</p>
+              </>
+            )}
+            {healthLabel === 'low' && (
+              <>
+                <p className="font-semibold">Reserves running low</p>
+                <p className="opacity-80">Reserve / liability ratio is below 80%. Capture rate auto-raised to 15% to rebuild the vault faster from swap fees.</p>
+              </>
+            )}
+            {healthLabel === 'emergency' && (
+              <>
+                <p className="font-semibold">Vault needs topping up</p>
+                <p className="opacity-80">Ratio below 30% — vault is early-stage or recently drained. Capture rate is at maximum (20%). Each swap replenishes reserves. Use "Seed Vault" to fast-forward this in the demo.</p>
+              </>
+            )}
+          </div>
         </>
       )}
 
       <p className="text-xs text-gray-600">
-        Capture rate auto-adjusts: 10% (healthy) → 15% (low) → 20% (emergency).
+        Capture rate = % of each swap's elevated fee that accrues here. Auto-adjusts: 10% healthy → 15% low → 20% emergency.
       </p>
     </div>
   )

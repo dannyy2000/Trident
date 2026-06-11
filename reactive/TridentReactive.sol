@@ -64,9 +64,6 @@ contract TridentReactive is AbstractPausableReactive {
     ///         e.g. WETH(18)/USDC(6) with 8-decimal Chainlink feed: sqrt(10^20) = 1e10
     uint256 public immutable SQRT_ORACLE_DIVISOR;
 
-    /// @notice Deviation threshold above which oracle is flagged as manipulated (bps)
-    uint256 public immutable MANIPULATION_THRESHOLD_BPS;
-
     // -------------------------------------------------------------------------
     // Mutable state (maintained in the ReactVM copy of this contract)
     // -------------------------------------------------------------------------
@@ -79,11 +76,6 @@ contract TridentReactive is AbstractPausableReactive {
 
     /// @notice Latest pool tick from the most recent Swap event
     int24 public latestTick;
-
-    /// @notice Simple circular buffer of last 8 pool sqrtPriceX96 values — used as TWAP proxy
-    uint160[8] private _sqrtBuffer;
-    uint8 private _bufferIdx;
-    bool private _bufferFull;
 
     /// @notice Tracked LP boundary ticks (populated from ModifyLiquidity events)
     int24[] private _boundaries;
@@ -99,7 +91,6 @@ contract TridentReactive is AbstractPausableReactive {
     /// @param poolId            keccak256 hash of the PoolKey being monitored
     /// @param tickSpacing       Pool tick spacing (10, 60, or 200)
     /// @param sqrtOracleDivisor sqrt(10^(oracleDec + token0Dec - token1Dec)), e.g. 1e10 for WETH/USDC
-    /// @param manipulationBps   Oracle manipulation detection threshold, e.g. 200 (2%)
     /// @param initialOraclePrice Latest Chainlink answer at deploy time (seed value)
     constructor(
         uint256 destChainId,
@@ -109,7 +100,6 @@ contract TridentReactive is AbstractPausableReactive {
         bytes32 poolId,
         int24 tickSpacing,
         uint256 sqrtOracleDivisor,
-        uint256 manipulationBps,
         uint256 initialOraclePrice
     ) payable {
         DEST_CHAIN_ID = destChainId;
@@ -119,29 +109,27 @@ contract TridentReactive is AbstractPausableReactive {
         POOL_ID = poolId;
         TICK_SPACING = tickSpacing;
         SQRT_ORACLE_DIVISOR = sqrtOracleDivisor;
-        MANIPULATION_THRESHOLD_BPS = manipulationBps;
         latestOraclePrice = initialOraclePrice;
 
-        // Subscribe only on top-level Reactive Network (not in ReactVM)
+        // Register subscriptions at deployment time — this is the required pattern.
+        // The if(!vm) guard skips subscribe() in the ReactVM sandbox (where the system
+        // contract has no code and subscribe() would revert).
         if (!vm) {
-            // 1. Swap events — core trigger for all callbacks
-            service.subscribe(
-                destChainId, poolManager, SWAP_TOPIC,
-                uint256(poolId), // filter to specific pool
-                REACTIVE_IGNORE, REACTIVE_IGNORE
-            );
-            // 2. Chainlink AnswerUpdated — keeps oracle price fresh
-            service.subscribe(
-                destChainId, chainlinkFeed, ANSWER_UPDATED_TOPIC,
-                REACTIVE_IGNORE, REACTIVE_IGNORE, REACTIVE_IGNORE
-            );
-            // 3. ModifyLiquidity — tracks LP range boundaries for gamma
-            service.subscribe(
-                destChainId, poolManager, MODIFY_LIQUIDITY_TOPIC,
-                uint256(poolId), // filter to specific pool
-                REACTIVE_IGNORE, REACTIVE_IGNORE
-            );
+            service.subscribe(DEST_CHAIN_ID, POOL_MANAGER, SWAP_TOPIC, REACTIVE_IGNORE, REACTIVE_IGNORE, REACTIVE_IGNORE);
+            service.subscribe(DEST_CHAIN_ID, CHAINLINK_FEED, ANSWER_UPDATED_TOPIC, REACTIVE_IGNORE, REACTIVE_IGNORE, REACTIVE_IGNORE);
+            service.subscribe(DEST_CHAIN_ID, POOL_MANAGER, MODIFY_LIQUIDITY_TOPIC, REACTIVE_IGNORE, REACTIVE_IGNORE, REACTIVE_IGNORE);
         }
+    }
+
+    // -------------------------------------------------------------------------
+    // Subscription management (pause / resume)
+    // -------------------------------------------------------------------------
+
+    /// @notice Re-subscribes to all three event streams. Use after pause() to resume.
+    function setupSubscriptions() external rnOnly onlyOwner {
+        service.subscribe(DEST_CHAIN_ID, POOL_MANAGER, SWAP_TOPIC, REACTIVE_IGNORE, REACTIVE_IGNORE, REACTIVE_IGNORE);
+        service.subscribe(DEST_CHAIN_ID, CHAINLINK_FEED, ANSWER_UPDATED_TOPIC, REACTIVE_IGNORE, REACTIVE_IGNORE, REACTIVE_IGNORE);
+        service.subscribe(DEST_CHAIN_ID, POOL_MANAGER, MODIFY_LIQUIDITY_TOPIC, REACTIVE_IGNORE, REACTIVE_IGNORE, REACTIVE_IGNORE);
     }
 
     // -------------------------------------------------------------------------
@@ -150,9 +138,9 @@ contract TridentReactive is AbstractPausableReactive {
 
     function getPausableSubscriptions() internal view override returns (Subscription[] memory subs) {
         subs = new Subscription[](3);
-        subs[0] = Subscription(DEST_CHAIN_ID, POOL_MANAGER, SWAP_TOPIC, uint256(POOL_ID), REACTIVE_IGNORE, REACTIVE_IGNORE);
+        subs[0] = Subscription(DEST_CHAIN_ID, POOL_MANAGER, SWAP_TOPIC, REACTIVE_IGNORE, REACTIVE_IGNORE, REACTIVE_IGNORE);
         subs[1] = Subscription(DEST_CHAIN_ID, CHAINLINK_FEED, ANSWER_UPDATED_TOPIC, REACTIVE_IGNORE, REACTIVE_IGNORE, REACTIVE_IGNORE);
-        subs[2] = Subscription(DEST_CHAIN_ID, POOL_MANAGER, MODIFY_LIQUIDITY_TOPIC, uint256(POOL_ID), REACTIVE_IGNORE, REACTIVE_IGNORE);
+        subs[2] = Subscription(DEST_CHAIN_ID, POOL_MANAGER, MODIFY_LIQUIDITY_TOPIC, REACTIVE_IGNORE, REACTIVE_IGNORE, REACTIVE_IGNORE);
     }
 
     // -------------------------------------------------------------------------
@@ -163,10 +151,12 @@ contract TridentReactive is AbstractPausableReactive {
     ///         Routes to the appropriate handler based on topic_0.
     function react(LogRecord calldata log) external override vmOnly {
         if (log.topic_0 == SWAP_TOPIC) {
+            if (bytes32(log.topic_1) != POOL_ID) return;
             _handleSwap(log);
         } else if (log.topic_0 == ANSWER_UPDATED_TOPIC) {
             _handleOracleUpdate(log);
         } else if (log.topic_0 == MODIFY_LIQUIDITY_TOPIC) {
+            if (bytes32(log.topic_1) != POOL_ID) return;
             _handleModifyLiquidity(log);
         }
     }
@@ -183,21 +173,12 @@ contract TridentReactive is AbstractPausableReactive {
         (, , uint160 sqrtPriceX96, , int24 tick,) =
             abi.decode(log.data, (int128, int128, uint160, uint128, int24, uint24));
 
-        // Update state
         latestPoolSqrtPrice = sqrtPriceX96;
         latestTick = tick;
-        _updateTwapBuffer(sqrtPriceX96);
 
-        // ── Layer 1: Oracle deviation ─────────────────────────────────────────
         uint256 deviationBps = _computeDeviationBps(sqrtPriceX96);
-
-        // ── Layer 1: Oracle manipulation check ───────────────────────────────
-        bool manipulated = _checkManipulation(sqrtPriceX96);
-
-        // ── Layer 2: Gamma score ──────────────────────────────────────────────
         (int24 nearestBoundary, uint256 gammaScore) = _computeGamma(tick);
 
-        // ── Callback 1: primeDeviation ────────────────────────────────────────
         emit Callback(
             DEST_CHAIN_ID,
             REACTIVE_ADAPTER,
@@ -205,7 +186,6 @@ contract TridentReactive is AbstractPausableReactive {
             abi.encodeWithSignature("primeDeviation(uint256)", deviationBps)
         );
 
-        // ── Callback 2: primeBoundaryFee (only if boundary is tracked) ────────
         if (nearestBoundary != 0 || _boundaries.length > 0) {
             emit Callback(
                 DEST_CHAIN_ID,
@@ -214,14 +194,6 @@ contract TridentReactive is AbstractPausableReactive {
                 abi.encodeWithSignature("primeBoundaryFee(int24,uint256)", nearestBoundary, gammaScore)
             );
         }
-
-        // ── Callback 3: oracle manipulation flag ──────────────────────────────
-        emit Callback(
-            DEST_CHAIN_ID,
-            REACTIVE_ADAPTER,
-            300_000,
-            abi.encodeWithSignature("setOracleManipulated(bool)", manipulated)
-        );
     }
 
     /// @dev Handles Chainlink AnswerUpdated: stores latest oracle price.
@@ -271,27 +243,6 @@ contract TridentReactive is AbstractPausableReactive {
 
         // Multiply by 20000 (= 2 × 10000) to convert sqrt-space ratio → price-space bps
         return (diff * 20_000) / uint256(sqrtPriceX96);
-    }
-
-    /// @dev Returns true if the stored TWAP deviates from current sqrtPrice by more than threshold.
-    ///      TWAP = arithmetic mean of last 8 sqrtPriceX96 values.
-    function _checkManipulation(uint160 sqrtPriceX96) internal view returns (bool) {
-        if (!_bufferFull) return false;
-
-        // Compute average of circular buffer
-        uint256 sum;
-        for (uint8 i = 0; i < 8; i++) {
-            sum += uint256(_sqrtBuffer[i]);
-        }
-        uint256 twapSqrt = sum / 8;
-        if (twapSqrt == 0) return false;
-
-        uint256 diff = uint256(sqrtPriceX96) >= twapSqrt
-            ? uint256(sqrtPriceX96) - twapSqrt
-            : twapSqrt - uint256(sqrtPriceX96);
-
-        uint256 divergenceBps = (diff * 20_000) / twapSqrt;
-        return divergenceBps > MANIPULATION_THRESHOLD_BPS;
     }
 
     /// @dev Finds nearest LP boundary and computes gamma score.
@@ -348,13 +299,6 @@ contract TridentReactive is AbstractPausableReactive {
         return diff < 0 ? -diff : diff;
     }
 
-    /// @dev Updates the circular TWAP buffer with a new sqrtPriceX96 observation.
-    function _updateTwapBuffer(uint160 sqrtPriceX96) internal {
-        _sqrtBuffer[_bufferIdx] = sqrtPriceX96;
-        _bufferIdx = (_bufferIdx + 1) % 8;
-        if (_bufferIdx == 0) _bufferFull = true;
-    }
-
     /// @dev Adds a tick boundary if not already tracked. Caps at 200 boundaries.
     function _addBoundary(int24 tick) internal {
         if (_boundaries.length >= 200) return; // gas guard
@@ -364,24 +308,4 @@ contract TridentReactive is AbstractPausableReactive {
         _boundaries.push(tick);
     }
 
-    // -------------------------------------------------------------------------
-    // Admin — callable only on top-level Reactive Network (not in ReactVM)
-    // -------------------------------------------------------------------------
-
-    /// @notice Manually seed the oracle price. Useful for initial setup before
-    ///         the first AnswerUpdated event is received.
-    function seedOraclePrice(uint256 price) external rnOnly onlyOwner {
-        latestOraclePrice = price;
-    }
-
-    /// @notice Manually register an LP boundary tick. Useful for LPs who added
-    ///         liquidity before TridentReactive was deployed.
-    function addBoundary(int24 tick) external rnOnly onlyOwner {
-        _addBoundary(tick);
-    }
-
-    /// @notice Returns all tracked LP boundary ticks.
-    function boundaries() external view returns (int24[] memory) {
-        return _boundaries;
-    }
 }

@@ -50,12 +50,12 @@ contract SwapHelper is IUnlockCallback {
         int256 delta0 = delta.amount0();
         int256 delta1 = delta.amount1();
 
-        // positive delta => pool received tokens => caller must pay
-        if (delta0 > 0) _settle(d.key.currency0, d.payer,     uint256(delta0));
-        if (delta1 > 0) _settle(d.key.currency1, d.payer,     uint256(delta1));
-        // negative delta => pool sent tokens => caller receives
-        if (delta0 < 0) _take(d.key.currency0, d.recipient, uint256(-delta0));
-        if (delta1 < 0) _take(d.key.currency1, d.recipient, uint256(-delta1));
+        // negative delta => caller owes pool => settle (pay in)
+        if (delta0 < 0) _settle(d.key.currency0, d.payer,     uint256(-delta0));
+        if (delta1 < 0) _settle(d.key.currency1, d.payer,     uint256(-delta1));
+        // positive delta => pool owes caller => take (receive)
+        if (delta0 > 0) _take(d.key.currency0, d.recipient, uint256(delta0));
+        if (delta1 > 0) _take(d.key.currency1, d.recipient, uint256(delta1));
 
         return abi.encode(delta);
     }

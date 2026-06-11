@@ -32,7 +32,8 @@ export const TRIDENT_HOOK_ABI = [
   { name: 'primedGammaScore',   type: 'function', stateMutability: 'view', inputs: [], outputs: [{ type: 'uint256' }] },
   { name: 'primedBoundaryTick', type: 'function', stateMutability: 'view', inputs: [], outputs: [{ type: 'int24' }] },
   { name: 'oracleManipulated',  type: 'function', stateMutability: 'view', inputs: [], outputs: [{ type: 'bool' }] },
-  { name: 'pendingCapture',     type: 'function', stateMutability: 'view', inputs: [{ name: 'token', type: 'address' }], outputs: [{ type: 'uint256' }] },
+  { name: 'pendingCapture',     type: 'function', stateMutability: 'view',       inputs: [{ name: 'token', type: 'address' }], outputs: [{ type: 'uint256' }] },
+  { name: 'flushToVault',       type: 'function', stateMutability: 'nonpayable', inputs: [{ name: 'token', type: 'address' }], outputs: [] },
   // Constants
   { name: 'baseFee',                   type: 'function', stateMutability: 'view', inputs: [], outputs: [{ type: 'uint24' }] },
   { name: 'MAX_FEE_BPS',               type: 'function', stateMutability: 'view', inputs: [], outputs: [{ type: 'uint24' }] },

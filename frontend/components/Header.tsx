@@ -1,14 +1,18 @@
 'use client'
 
-import { ConnectButton } from '@rainbow-me/rainbowkit'
+import { useAccount, useConnect, useDisconnect } from 'wagmi'
+import { injected } from 'wagmi/connectors'
 
 export function Header() {
+  const { address, isConnected } = useAccount()
+  const { connect } = useConnect()
+  const { disconnect } = useDisconnect()
+
   return (
     <header className="border-b border-gray-800 bg-gray-950/80 backdrop-blur sticky top-0 z-50">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
         <div className="flex items-center gap-3">
           <div className="flex items-center gap-2">
-            {/* Trident logo — three bars */}
             <svg width="28" height="28" viewBox="0 0 28 28" fill="none">
               <rect x="4"  y="8" width="4" height="16" rx="2" fill="#6366f1" />
               <rect x="12" y="4" width="4" height="20" rx="2" fill="#818cf8" />
@@ -27,11 +31,26 @@ export function Header() {
           <a href="#activity"  className="hover:text-white transition-colors">Activity</a>
         </nav>
 
-        <ConnectButton
-          accountStatus="address"
-          chainStatus="icon"
-          showBalance={false}
-        />
+        {isConnected ? (
+          <div className="flex items-center gap-3">
+            <span className="text-xs font-mono text-gray-400 hidden sm:block">
+              {address?.slice(0, 6)}...{address?.slice(-4)}
+            </span>
+            <button
+              onClick={() => disconnect()}
+              className="text-xs px-3 py-1.5 rounded-lg border border-gray-700 text-gray-400 hover:text-white hover:border-gray-500 transition-colors"
+            >
+              Disconnect
+            </button>
+          </div>
+        ) : (
+          <button
+            onClick={() => connect({ connector: injected() })}
+            className="px-4 py-2 rounded-lg bg-indigo-600 hover:bg-indigo-500 text-white text-sm font-semibold transition-colors"
+          >
+            Connect Wallet
+          </button>
+        )}
       </div>
     </header>
   )

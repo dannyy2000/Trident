@@ -1,20 +1,18 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
+import { keccak256, encodeAbiParameters } from 'viem'
 import {
-  useConnection, useReadContract, useReadContracts, useWriteContract, useWaitForTransactionReceipt,
+  useAccount, useReadContract, useReadContracts, useWriteContract, useWaitForTransactionReceipt,
 } from 'wagmi'
 import { CONTRACTS, POOL_KEY, DYNAMIC_FEE_FLAG } from '@/lib/contracts'
-import { LIQUIDITY_HELPER_ABI, ERC20_ABI, POOL_MANAGER_ABI } from '@/lib/abis'
+import { LIQUIDITY_HELPER_ABI, ERC20_ABI, POOL_MANAGER_ABI, POSITION_TRACKER_ABI } from '@/lib/abis'
+
 type Mode = 'add' | 'remove'
 
-// PoolId = keccak256(abi.encode(poolKey)) — precomputed from InitPool output
-const POOL_ID = '0x198c039d15a9e83af81d10cc37c7962537d26cf4ea137c0c8ad4724d7cc0d077' as `0x${string}`
+const POOL_ID = '0x5e1589e36bf91d1b848851741701815f43d2b750dd64b05135b771f340b1d4e6' as `0x${string}`
 
-// Compute liquidity from token0 amount + sqrtPrice + tick bounds.
-// Mirrors LiquidityAmounts.getLiquidityForAmount0 from Uniswap v3/v4 math.
 function sqrtX96(tick: number): bigint {
-  // Approximate: sqrtPriceX96 = 2^96 * 1.0001^(tick/2)
   return BigInt(Math.floor(Math.pow(1.0001, tick / 2) * 2 ** 96))
 }
 
@@ -30,18 +28,15 @@ function getLiquidityForAmounts(
   const Q96 = 2n ** 96n
 
   if (sqrtPrice <= sqrtA) {
-    // Only token0 needed
     if (amount0 === 0n || sqrtB <= sqrtA) return 0n
     return (amount0 * sqrtA * sqrtB / Q96) / (sqrtB - sqrtA)
   } else if (sqrtPrice < sqrtB) {
-    // Both tokens
     const liq0 = sqrtPrice > 0n
       ? (amount0 * sqrtPrice * sqrtB / Q96) / (sqrtB - sqrtPrice)
       : 0n
     const liq1 = (amount1 * Q96) / (sqrtPrice - sqrtA)
     return liq0 < liq1 ? liq0 : liq1
   } else {
-    // Only token1 needed
     if (amount1 === 0n || sqrtB <= sqrtA) return 0n
     return (amount1 * Q96) / (sqrtB - sqrtA)
   }
@@ -55,16 +50,20 @@ const POOL_KEY_TUPLE = {
   hooks:       CONTRACTS.hook,
 } as const
 
-export function LiquidityPanel() {
-  const { address, isConnected } = useConnection()
-  const [mode,      setMode]      = useState<Mode>('add')
-  const [tickLower, setTickLower] = useState(-6000)
-  const [tickUpper, setTickUpper] = useState(6000)
-  const [amount0In, setAmount0In] = useState('')  // token0 human amount
-  const [amount1In, setAmount1In] = useState('')  // token1 human amount
-  const [txHash,    setTxHash]    = useState<`0x${string}` | undefined>()
+const ZERO_BYTES32 = ('0x' + '0'.repeat(64)) as `0x${string}`
 
-  // Read current pool price + token metadata
+export function LiquidityPanel() {
+  const { address, isConnected } = useAccount()
+  const [mode,      setMode]      = useState<Mode>('add')
+  const [tickLower, setTickLower] = useState(-196980)
+  const [tickUpper, setTickUpper] = useState(-195600)
+  const [amount0In, setAmount0In] = useState('')
+  const [amount1In, setAmount1In] = useState('')
+  const [txHash,       setTxHash]       = useState<`0x${string}` | undefined>()
+  const [approvingIdx, setApprovingIdx] = useState<0 | 1 | null>(null)
+
+  const FALLBACK_SQRT_PRICE = 4339505179874779662909440n
+
   const { data: slot0 } = useReadContract({
     address: CONTRACTS.poolManager,
     abi: POOL_MANAGER_ABI,
@@ -87,27 +86,57 @@ export function LiquidityPanel() {
     query: { enabled: !!address },
   })
 
-  const dec0  = Number((meta?.[0].result as bigint | undefined) ?? 18n)
-  const dec1  = Number((meta?.[1].result as bigint | undefined) ?? 6n)
-  const sym0  = (meta?.[2].result as string | undefined) ?? 'token0'
-  const sym1  = (meta?.[3].result as string | undefined) ?? 'token1'
-  const all0  = (meta?.[4].result as bigint | undefined) ?? 0n
-  const all1  = (meta?.[5].result as bigint | undefined) ?? 0n
+  const dec0 = Number((meta?.[0].result as bigint | undefined) ?? 18n)
+  const dec1 = Number((meta?.[1].result as bigint | undefined) ?? 6n)
+  const sym0 = (meta?.[2].result as string | undefined) ?? 'token0'
+  const sym1 = (meta?.[3].result as string | undefined) ?? 'token1'
+  const all0 = (meta?.[4].result as bigint | undefined) ?? 0n
+  const all1 = (meta?.[5].result as bigint | undefined) ?? 0n
 
-  const sqrtPrice = (slot0 as any)?.[0] as bigint | undefined
+  const sqrtPrice = ((slot0 as any)?.[0] as bigint | undefined) ?? FALLBACK_SQRT_PRICE
 
-  // Parse human amounts to base units
-  const raw0 = amount0In
+  // ── Position fetch for remove mode ───────────────────────────────
+  const positionId = keccak256(encodeAbiParameters(
+    [
+      { name: 'lp',        type: 'address' },
+      { name: 'tickLower', type: 'int24'   },
+      { name: 'tickUpper', type: 'int24'   },
+      { name: 'salt',      type: 'bytes32' },
+    ],
+    [CONTRACTS.liquidityHelper, tickLower, tickUpper, ZERO_BYTES32]
+  ))
+
+  const { data: positionData } = useReadContract({
+    address: CONTRACTS.tracker,
+    abi: POSITION_TRACKER_ABI,
+    functionName: 'getPosition',
+    args: [positionId],
+    query: { enabled: mode === 'remove', refetchInterval: 5000 },
+  })
+
+  const positionLiquidity: bigint = positionData ? (positionData as any).liquidity as bigint : 0n
+  const positionExists:  boolean  = positionData ? (positionData as any).exists  as boolean : false
+
+  // Pre-fill remove input when position data arrives
+  useEffect(() => {
+    if (mode === 'remove' && positionLiquidity > 0n) {
+      setAmount0In(positionLiquidity.toString())
+    }
+  }, [mode, positionLiquidity.toString()])
+
+  // ── Amount parsing ────────────────────────────────────────────────
+  const raw0 = amount0In && mode === 'add'
     ? BigInt(Math.floor(parseFloat(amount0In) * 10 ** dec0))
     : 0n
-  const raw1 = amount1In
+  const raw1 = amount1In && mode === 'add'
     ? BigInt(Math.floor(parseFloat(amount1In) * 10 ** dec1))
     : 0n
 
-  // Compute liquidityDelta from token amounts
   const liquidityDelta: bigint = (() => {
-    if (mode === 'remove') return -(raw0 || raw1 || 0n)
-    if (!sqrtPrice || (raw0 === 0n && raw1 === 0n)) return 0n
+    if (mode === 'remove') {
+      try { return -(BigInt(amount0In || '0')) } catch { return 0n }
+    }
+    if (raw0 === 0n && raw1 === 0n) return 0n
     return getLiquidityForAmounts(sqrtPrice, tickLower, tickUpper, raw0, raw1)
   })()
 
@@ -117,14 +146,21 @@ export function LiquidityPanel() {
 
   const { mutate: writeContract, isPending } = useWriteContract()
   const { isLoading: isConfirming, isSuccess } = useWaitForTransactionReceipt({ hash: txHash })
-  if (isSuccess) { refetchMeta(); setTxHash(undefined) }
+  if (isSuccess) { refetchMeta(); setTxHash(undefined); setApprovingIdx(null) }
+
+  const busy = isPending || isConfirming || approvingIdx !== null
 
   function approve(which: 0 | 1) {
+    if (busy) return
+    setApprovingIdx(which)
     const tokenAddr = which === 0 ? POOL_KEY.token0 : POOL_KEY.token1
     writeContract(
       { address: tokenAddr, abi: ERC20_ABI, functionName: 'approve',
         args: [CONTRACTS.liquidityHelper, MAX_UINT256] },
-      { onSuccess: (hash) => setTxHash(hash) }
+      {
+        onSuccess: (hash) => setTxHash(hash),
+        onError: () => setApprovingIdx(null),
+      }
     )
   }
 
@@ -135,13 +171,7 @@ export function LiquidityPanel() {
         address: CONTRACTS.liquidityHelper,
         abi: LIQUIDITY_HELPER_ABI,
         functionName: 'modifyLiquidity',
-        args: [
-          POOL_KEY_TUPLE,
-          liquidityDelta,
-          tickLower,
-          tickUpper,
-          ('0x' + '0'.repeat(64)) as `0x${string}`,
-        ],
+        args: [POOL_KEY_TUPLE, liquidityDelta, tickLower, tickUpper, ZERO_BYTES32],
       },
       {
         onSuccess: (hash) => {
@@ -172,7 +202,7 @@ export function LiquidityPanel() {
           {(['add', 'remove'] as Mode[]).map(m => (
             <button
               key={m}
-              onClick={() => setMode(m)}
+              onClick={() => { setMode(m); setAmount0In(''); setAmount1In('') }}
               className={`px-3 py-1.5 capitalize transition-colors ${
                 mode === m ? 'bg-indigo-600 text-white' : 'text-gray-400 hover:text-white'
               }`}
@@ -205,15 +235,35 @@ export function LiquidityPanel() {
         </div>
       </div>
 
+      {/* Remove mode: show fetched position info */}
+      {mode === 'remove' && (
+        <div className="flex items-center justify-between bg-gray-800/60 rounded-lg px-3 py-2">
+          <div className="text-xs text-gray-400">
+            {positionExists
+              ? <>Position liquidity: <span className="font-mono text-white">{positionLiquidity.toString()}</span></>
+              : <span className="text-red-400">No active position found for these ticks</span>
+            }
+          </div>
+          {positionExists && positionLiquidity > 0n && (
+            <button
+              onClick={() => setAmount0In(positionLiquidity.toString())}
+              className="text-xs text-indigo-400 hover:text-indigo-300 font-semibold ml-3"
+            >
+              Use Max
+            </button>
+          )}
+        </div>
+      )}
+
       {/* Token amounts */}
       <div className="grid grid-cols-2 gap-3">
         <div>
           <label className="text-xs text-gray-500 block mb-1">
-            {sym0} amount {mode === 'remove' ? '(liquidity units)' : ''}
+            {mode === 'remove' ? 'Liquidity to remove' : `${sym0} amount`}
           </label>
           <input
-            type="number"
-            placeholder={mode === 'add' ? '0.0' : 'raw liquidity to remove'}
+            type={mode === 'remove' ? 'text' : 'number'}
+            placeholder={mode === 'add' ? '0.0' : 'liquidity units'}
             value={amount0In}
             onChange={e => setAmount0In(e.target.value)}
             className="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-sm font-mono text-gray-200 focus:outline-none focus:border-indigo-500"
@@ -240,24 +290,24 @@ export function LiquidityPanel() {
       )}
 
       {/* Approve buttons */}
-      {mode === 'add' && (
+      {mode === 'add' && (needsApprove0 || needsApprove1) && (
         <div className="flex gap-2">
           {needsApprove0 && (
             <button
               onClick={() => approve(0)}
-              disabled={isPending || isConfirming}
+              disabled={busy}
               className="flex-1 py-2 rounded-lg bg-gray-700 hover:bg-gray-600 disabled:opacity-40 text-xs font-semibold text-gray-200 transition-colors"
             >
-              {isPending ? 'Approving…' : `Approve ${sym0}`}
+              {approvingIdx === 0 ? 'Approving…' : `Approve ${sym0}`}
             </button>
           )}
           {needsApprove1 && (
             <button
               onClick={() => approve(1)}
-              disabled={isPending || isConfirming}
+              disabled={busy}
               className="flex-1 py-2 rounded-lg bg-gray-700 hover:bg-gray-600 disabled:opacity-40 text-xs font-semibold text-gray-200 transition-colors"
             >
-              {isPending ? 'Approving…' : `Approve ${sym1}`}
+              {approvingIdx === 1 ? 'Approving…' : `Approve ${sym1}`}
             </button>
           )}
         </div>
@@ -265,22 +315,32 @@ export function LiquidityPanel() {
 
       <button
         onClick={modify}
-        disabled={!canModify || isPending || isConfirming}
+        disabled={!canModify || busy}
         className={`w-full py-2.5 rounded-lg text-sm font-semibold transition-colors disabled:opacity-40 disabled:cursor-not-allowed ${
           mode === 'add'
             ? 'bg-indigo-600 hover:bg-indigo-500 text-white'
             : 'bg-red-800 hover:bg-red-700 text-white'
         }`}
       >
-        {isPending || isConfirming
+        {busy
           ? (mode === 'add' ? 'Adding…' : 'Removing…')
           : (mode === 'add' ? 'Add Liquidity' : 'Remove Liquidity')}
       </button>
 
       {isSuccess && (
-        <p className="text-xs text-green-400">
-          {mode === 'add' ? 'Liquidity added.' : 'Liquidity removed — check vault payout in My LP Position.'}
-        </p>
+        <div className="rounded-lg bg-green-950/40 border border-green-800/50 px-3 py-2 text-xs text-green-300 space-y-0.5">
+          {mode === 'add' ? (
+            <>
+              <p className="font-semibold">Liquidity added</p>
+              <p className="opacity-80">Your position is now earning fees. Arb bots and boundary-aware premiums will accrue to you while price stays in range.</p>
+            </>
+          ) : (
+            <>
+              <p className="font-semibold">Liquidity removed — tokens returned to your wallet</p>
+              <p className="opacity-80">Both mWETH and mUSDC have been sent back. If your position was eligible, an IL compensation payout from the vault was included — check <span className="font-mono">My Position</span> above.</p>
+            </>
+          )}
+        </div>
       )}
     </div>
   )

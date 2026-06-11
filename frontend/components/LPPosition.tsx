@@ -1,16 +1,16 @@
 'use client'
 
 import { useState } from 'react'
-import { useConnection } from 'wagmi'
+import { useAccount } from 'wagmi'
 import { useLPPosition } from '@/hooks/useLPPosition'
 import { useVaultState, formatTokenAmount } from '@/hooks/useVaultState'
 
 export function LPPosition({ currentTick }: { currentTick: number }) {
-  const { isConnected } = useConnection()
+  const { isConnected } = useAccount()
   const { tokenSymbol, tokenDecimals } = useVaultState()
 
-  const [tickLower, setTickLower] = useState(-6000)
-  const [tickUpper, setTickUpper] = useState(6000)
+  const [tickLower, setTickLower] = useState(-196980)
+  const [tickUpper, setTickUpper] = useState(-195600)
 
   const position = useLPPosition({ tickLower, tickUpper, currentTick })
 

@@ -45,6 +45,12 @@ contract LiquidityHelper is IUnlockCallback {
             }))),
             (BalanceDelta)
         );
+        // On removal the vault IL payout lands here (hook uses this contract as recipient).
+        // Forward it immediately so the caller receives it in the same transaction.
+        if (liquidityDelta < 0) {
+            _sweepTo(key.currency0, msg.sender);
+            _sweepTo(key.currency1, msg.sender);
+        }
     }
 
     function unlockCallback(bytes calldata rawData) external override returns (bytes memory) {
@@ -56,12 +62,12 @@ contract LiquidityHelper is IUnlockCallback {
         int256 delta0 = delta.amount0();
         int256 delta1 = delta.amount1();
 
-        // positive => pool received => sender pays
-        if (delta0 > 0) _settle(d.key.currency0, d.sender, uint256(delta0));
-        if (delta1 > 0) _settle(d.key.currency1, d.sender, uint256(delta1));
-        // negative => pool sent => sender receives
-        if (delta0 < 0) _take(d.key.currency0, d.sender, uint256(-delta0));
-        if (delta1 < 0) _take(d.key.currency1, d.sender, uint256(-delta1));
+        // negative delta => caller owes pool => settle (pay in)
+        if (delta0 < 0) _settle(d.key.currency0, d.sender, uint256(-delta0));
+        if (delta1 < 0) _settle(d.key.currency1, d.sender, uint256(-delta1));
+        // positive delta => pool owes caller => take (receive)
+        if (delta0 > 0) _take(d.key.currency0, d.sender, uint256(delta0));
+        if (delta1 > 0) _take(d.key.currency1, d.sender, uint256(delta1));
 
         return abi.encode(delta);
     }
@@ -74,5 +80,11 @@ contract LiquidityHelper is IUnlockCallback {
 
     function _take(Currency currency, address recipient, uint256 amount) internal {
         poolManager.take(currency, recipient, amount);
+    }
+
+    function _sweepTo(Currency currency, address to) internal {
+        address token = Currency.unwrap(currency);
+        uint256 bal = IERC20Minimal(token).balanceOf(address(this));
+        if (bal > 0) IERC20Minimal(token).transfer(to, bal);
     }
 }

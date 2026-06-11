@@ -1,6 +1,6 @@
 'use client'
 
-import { useConnection, useReadContract } from 'wagmi'
+import { useAccount, useReadContract } from 'wagmi'
 import { encodeAbiParameters, keccak256 } from 'viem'
 import { POSITION_TRACKER_ABI, IL_RESERVE_VAULT_ABI } from '@/lib/abis'
 import { CONTRACTS } from '@/lib/contracts'
@@ -27,7 +27,7 @@ export function useLPPosition(params: {
   salt?: `0x${string}`
   currentTick: number
 }): LPPosition {
-  const { address } = useConnection()
+  const { address } = useAccount()
   const salt = params.salt ?? ('0x' + '0'.repeat(64) as `0x${string}`)
 
   const positionId = address
